@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <script src="https://cdn.jsdelivr.net/npm/p5@1.11.11/lib/p5.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/p5@1.11.11/lib/addons/p5.sound.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/mdbassit/Coloris@latest/dist/coloris.min.css"/>
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        width: 100%;
+        height: 100%;
+      }
+      canvas {
+        display: block;
+      }
+      .custom-slider {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 150px;
+        height: 6px;
+        background: transparent;
+        border-radius: 10px;
+        outline: none;
+      }
+      .custom-slider::-webkit-slider-runnable-track {
+        height: 12px;
+        background: transparent;
+        border-radius: 0;
+        box-shadow: 0 0 0 3px black;
+      }
+      .custom-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 14px;
+        height: 12px;
+        background: #000000;
+        border-radius: 0%;
+        border: none;
+        cursor: pointer;
+        margin-top: 0px;
+      }
+      .custom-slider:active::-webkit-slider-thumb {
+        background: #bc271a;
+      }
+      .custom-slider::-moz-range-track {
+        height: 12px;
+        background: transparent;
+        border-radius: 0px;
+        box-shadow: 0 0 0 3px black;
+      }
+      .custom-slider::-moz-range-thumb {
+        appearance: none;
+        width: 14px;
+        height: 12px;
+        border: none;
+        background: black;
+        border-radius: 0%;
+        cursor: pointer;
+      }
+      .custom-slider:active::-moz-range-thumb {
+        background: #bc271a;
+      }
+    </style>
+
+    <!-- Firebase -->
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+      import {
+        getFirestore, collection, addDoc, serverTimestamp
+      } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+      const firebaseConfig = {
+        apiKey: "AIzaSyDjsgtW5_RUOpzR0TbiMY4HGlcyFRrOu5g",
+        authDomain: "entropix-a6d15.firebaseapp.com",
+        projectId: "entropix-a6d15",
+        storageBucket: "entropix-a6d15.firebasestorage.app",
+        messagingSenderId: "626387238040",
+        appId: "1:626387238040:web:40cb69e887aca3eab064ed",
+        measurementId: "G-B1S3D5YZN0"
+      };
+
+      const app = initializeApp(firebaseConfig);
+      window._db = getFirestore(app);
+      window._fsAddDoc = addDoc;
+      window._fsCollection = collection;
+      window._fsTimestamp = serverTimestamp;
+    </script>
+  </head>
+  <body>
+    <script src="https://cdn.jsdelivr.net/gh/mdbassit/Coloris@latest/dist/coloris.min.js"></script>
+    <script src="sketch.js"></script>
+  </body>
+</html>

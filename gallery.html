@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import {
+      getFirestore, collection, addDoc, serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDjsgtW5_RUOpzR0TbiMY4HGlcyFRrOu5g",
+      authDomain: "entropix-a6d15.firebaseapp.com",
+      projectId: "entropix-a6d15",
+      storageBucket: "entropix-a6d15.firebasestorage.app",
+      messagingSenderId: "626387238040",
+      appId: "1:626387238040:web:40cb69e887aca3eab064ed",
+      measurementId: "G-B1S3D5YZN0"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    window._db = getFirestore(app);
+    window._fsAddDoc = addDoc;
+    window._fsCollection = collection;
+    window._fsTimestamp = serverTimestamp;
+  </script>
+
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gallery</title>
+  <link rel="preload" href="youngs.ttf" as="font" type="font/truetype" crossorigin />
+  <style>
+    @font-face {
+      font-family: 'Doto';
+      src: url('assets/fonts/Doto-Bold.ttf') format('truetype');
+      font-weight: bold;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --gold: #f4b900;
+      --orange: #ff8a00;
+      --red: #bc271a;
+      --bg: #120e0a;
+      --surface: #1c1510;
+      --border: #3a2a18;
+      --text: #f4b900;
+      --muted: #7a5c30;
+      --sidebar: 370px;
+    }
+
+    body {
+      font-family: 'Doto', monospace;
+      background: var(--bg);
+      min-height: 100vh;
+      display: flex;
+      color: var(--text);
+    }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      width: var(--sidebar);
+      min-height: 100vh;
+      flex-shrink: 0;
+      background: url('sidebar.png') repeat-y left top / var(--sidebar) auto;
+      position: sticky;
+      top: 0;
+      display: flex;
+      flex-direction: column;
+      padding: 20px 30px;
+      gap: 20px;
+      z-index: 10;
+    }
+
+    .sidebar-logo {
+      width: calc(var(--sidebar) - 60px);
+      height: auto;
+      object-fit: contain;
+      object-position: left top;
+      display: block;
+    }
+
+    .back-btn {
+      display: inline-block;
+      color: var(--orange);
+      font-family: 'Doto', monospace;
+      font-size: 18px;
+      text-decoration: none;
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 0;
+      text-align: left;
+      letter-spacing: 0.03em;
+    }
+    .back-btn:hover { color: var(--gold); }
+
+    .sidebar-label {
+      font-size: 16px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .sort-group { display: flex; flex-direction: column; gap: 10px; }
+
+    .sort-group label {
+      font-size: 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--text);
+    }
+
+    .sort-group input[type="radio"] {
+      accent-color: var(--orange);
+      width: 15px;
+      height: 15px;
+      appearance: none;
+      -webkit-appearance: none;
+      border: 2px solid var(--orange);
+      border-radius: 50%;
+      background: var(--bg);
+      cursor: pointer;
+      flex-shrink: 0;
+      position: relative;
+    }
+    .sort-group input[type="radio"]:checked::after {
+      content: '';
+      position: absolute;
+      inset: 2px;
+      border-radius: 50%;
+      background: var(--orange);
+    }
+
+    .count-label {
+      font-size: 14px;
+      color: var(--muted);
+      margin-top: auto;
+      letter-spacing: 0.05em;
+    }
+
+    /* ── MAIN ── */
+    .main {
+      flex: 1;
+      padding: 40px;
+      min-height: 100vh;
+    }
+
+    /* ── GRID ── */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform 0.1s, box-shadow 0.1s, border-color 0.1s;
+    }
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 24px rgba(0,0,0,0.5);
+      border-color: var(--muted);
+    }
+
+    .card-canvas-wrap {
+      width: 100%;
+      background: var(--bg);
+      position: relative;
+    }
+
+    .card-canvas-wrap .static-canvas {
+      display: block;
+      width: 100% !important;
+      height: auto !important;
+      image-rendering: pixelated;
+      transition: opacity 0.2s;
+    }
+
+    .card-canvas-wrap .hover-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100% !important;
+      height: 100% !important;
+      image-rendering: pixelated;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .card-footer {
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-top: 1px solid var(--border);
+    }
+
+    .card-date {
+      font-size: 13px;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+    }
+
+    .like-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-family: 'Doto', monospace;
+      font-size: 15px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 8px;
+      border-radius: 3px;
+      transition: background 0.1s, color 0.1s;
+    }
+    .like-btn:hover { background: #2a1e10; color: var(--gold); }
+    .like-btn.liked { color: var(--orange); }
+    .like-heart { font-size: 13px; line-height: 1; }
+
+    /* ── LOADING / EMPTY ── */
+    .status-msg {
+      font-size: 20px;
+      color: var(--muted);
+      text-align: center;
+      margin-top: 80px;
+      letter-spacing: 0.05em;
+    }
+
+    /* ── MODAL ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.75);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 28px;
+      max-width: 480px;
+      width: 90%;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      font-family: 'Doto', monospace;
+    }
+
+    .modal h2 {
+      font-size: 20px;
+      color: var(--gold);
+      letter-spacing: 0.05em;
+    }
+
+    .modal-preview {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+    }
+    .modal-preview canvas {
+      display: block;
+      width: 100% !important;
+      height: auto !important;
+      image-rendering: pixelated;
+    }
+
+    .modal-actions { display: flex; gap: 12px; }
+
+    .btn-primary {
+      flex: 1;
+      padding: 12px;
+      background: #7a3a0a;
+      color: var(--gold);
+      border: 1px solid var(--orange);
+      border-radius: 3px;
+      font-family: 'Doto', monospace;
+      font-size: 16px;
+      cursor: pointer;
+      letter-spacing: 0.05em;
+      transition: background 0.1s;
+    }
+    .btn-primary:hover { background: #a04d10; }
+
+    .btn-secondary {
+      flex: 1;
+      padding: 12px;
+      background: none;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      font-family: 'Doto', monospace;
+      font-size: 16px;
+      cursor: pointer;
+      letter-spacing: 0.05em;
+      transition: background 0.1s, color 0.1s;
+    }
+    .btn-secondary:hover { background: #2a1e10; color: var(--gold); }
+
+    .modal-meta {
+      font-size: 13px;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+    }
+  </style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <img src="assets/title/logo.png" class="sidebar-logo" alt="Entropix" />
+  <a class="back-btn" href="index.html">← back to editor</a>
+  <div class="sidebar-label">Sort by</div>
+  <div class="sort-group">
+    <label><input type="radio" name="sort" value="newest" checked /> newest first</label>
+    <label><input type="radio" name="sort" value="liked" /> most liked</label>
+  </div>
+  <div class="count-label" id="countLabel">— posts</div>
+</aside>
+
+<main class="main">
+  <div class="grid" id="grid"></div>
+  <div class="status-msg" id="statusMsg">loading...</div>
+</main>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h2>open in editor?</h2>
+    <div class="modal-preview" id="modalPreview"></div>
+    <p class="modal-meta" id="modalMeta"></p>
+    <div class="modal-actions">
+      <button class="btn-primary" id="openBtn">open in editor</button>
+      <button class="btn-secondary" id="closeModalBtn">cancel</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import {
+  getFirestore, collection, getDocs, doc, updateDoc, increment, orderBy, query
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+
+const idleSprites = Array.from({ length: 8 }, (_, i) => {
+  const img = new Image();
+  img.src = `assets/bit/idle/idle${i}.png`;
+  return img;
+});
+
+let posts = [];
+let likedSet = new Set(JSON.parse(localStorage.getItem('liked_posts') || '[]'));
+let selectedPost = null;
+let modalAnimFrame = null;
+
+function getBounds(particles) {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const p of particles) {
+    if (p.gx < minX) minX = p.gx;
+    if (p.gy < minY) minY = p.gy;
+    if (p.gx > maxX) maxX = p.gx;
+    if (p.gy > maxY) maxY = p.gy;
+  }
+  return { minX, minY, maxX, maxY };
+}
+
+function renderPreview(post, canvas) {
+  const { particles, scaleFactor } = post;
+  if (!particles?.length) return;
+  const size = Math.max(scaleFactor || 1, 1);
+  const { minX, minY, maxX, maxY } = getBounds(particles);
+  const cols = Math.round(maxX - minX) + 1;
+  const rows = Math.round(maxY - minY) + 1;
+  const dim = Math.max(cols, rows);
+  canvas.width = dim * size;
+  canvas.height = dim * size;
+  const offsetX = Math.floor((dim - cols) / 2);
+  const offsetY = Math.floor((dim - rows) / 2);
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  for (const p of particles) {
+    const { r, g, b } = p.col;
+    ctx.fillStyle = `rgb(${r},${g},${b})`;
+    ctx.fillRect(
+      (Math.round(p.gx - minX) + offsetX) * size,
+      (Math.round(p.gy - minY) + offsetY) * size,
+      size, size
+    );
+  }
+}
+
+async function loadPosts(sortBy) {
+  const grid = document.getElementById('grid');
+  const status = document.getElementById('statusMsg');
+  grid.innerHTML = '';
+  status.textContent = 'loading...';
+  const field = sortBy === 'liked' ? 'likes' : 'timestamp';
+  const q = query(collection(db, 'posts'), orderBy(field, 'desc'));
+  const snap = await getDocs(q);
+  posts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  document.getElementById('countLabel').textContent =
+    `${posts.length} post${posts.length === 1 ? '' : 's'}`;
+  if (posts.length === 0) {
+    status.textContent = 'no posts yet — be the first!';
+    return;
+  }
+  status.textContent = '';
+  for (const post of posts) grid.appendChild(makeCard(post));
+}
+
+
+
+function buildTintCache(particles) {
+  const cache = {};
+  for (const p of particles) {
+    const { r, g, b } = p.col;
+    const key = `${r},${g},${b}`;
+    if (cache[key]) continue;
+    cache[key] = idleSprites.map(sprite => {
+      if (!sprite?.complete || !sprite.naturalWidth) return null;
+      const t = document.createElement('canvas');
+      t.width = sprite.naturalWidth;
+      t.height = sprite.naturalHeight;
+      const tc = t.getContext('2d');
+      tc.drawImage(sprite, 0, 0);
+      tc.globalCompositeOperation = 'multiply';
+      tc.fillStyle = `rgb(${r},${g},${b})`;
+      tc.fillRect(0, 0, t.width, t.height);
+      tc.globalCompositeOperation = 'destination-in';
+      tc.drawImage(sprite, 0, 0);
+      return t;
+    });
+  }
+  return cache;
+}
+
+function makeCard(post) {
+  const card = document.createElement('div');
+  card.className = 'card';
+
+  const wrap = document.createElement('div');
+  wrap.className = 'card-canvas-wrap';
+
+  const staticCanvas = document.createElement('canvas');
+  staticCanvas.className = 'static-canvas';
+  wrap.appendChild(staticCanvas);
+  requestAnimationFrame(() => renderPreview(post, staticCanvas));
+
+  const hoverCanvas = document.createElement('canvas');
+  hoverCanvas.className = 'hover-canvas';
+  wrap.appendChild(hoverCanvas);
+
+  card.appendChild(wrap);
+
+  let animFrame = null;
+  let idleFrameIndex = 0;
+  let idleTimer = 0;
+  let lastTime = null;
+  let tintCache = null;
+
+  function startHoverAnim() {
+    const allLoaded = idleSprites.every(s => s.complete && s.naturalWidth);
+    if (!allLoaded) {
+      animFrame = requestAnimationFrame(startHoverAnim);
+      return;
+    }
+    const { particles, scaleFactor } = post;
+    if (!particles?.length) return;
+    if (!tintCache) tintCache = buildTintCache(particles);
+    const { minX, minY, maxX, maxY } = getBounds(particles);
+    const cols = maxX - minX + 1;
+    const rows = maxY - minY + 1;
+    const dim = Math.max(cols, rows);
+    const offsetX = Math.floor((dim - cols) / 2);
+    const offsetY = Math.floor((dim - rows) / 2);
+    const size = Math.max(scaleFactor || 1, 1);
+    hoverCanvas.width = dim * size;
+    hoverCanvas.height = dim * size;
+    const ctx = hoverCanvas.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    const offsets = particles.map(() => Math.floor(Math.random() * 8));
+
+    function tick(ts) {
+      if (!lastTime) lastTime = ts;
+      const dt = ts - lastTime;
+      lastTime = ts;
+      idleTimer += dt;
+      if (idleTimer > 1000 / 8) {
+        idleFrameIndex = (idleFrameIndex + 1) % 8;
+        idleTimer = 0;
+      }
+      ctx.clearRect(0, 0, hoverCanvas.width, hoverCanvas.height);
+      for (let i = 0; i < particles.length; i++) {
+        const p = particles[i];
+        const spriteIndex = (idleFrameIndex + offsets[i]) % 8;
+        const { r, g, b } = p.col;
+        const tinted = tintCache[`${r},${g},${b}`]?.[spriteIndex];
+        if (!tinted) continue;
+        ctx.drawImage(tinted,
+          (p.gx - minX + offsetX) * size,
+          (p.gy - minY + offsetY) * size,
+          size, size
+        );
+      }
+      animFrame = requestAnimationFrame(tick);
+    }
+    animFrame = requestAnimationFrame(tick);
+  }
+
+  function stopHoverAnim() {
+    if (animFrame) { cancelAnimationFrame(animFrame); animFrame = null; }
+    lastTime = null;
+    idleTimer = 0;
+  }
+
+  card.addEventListener('mouseenter', () => {
+    hoverCanvas.style.opacity = '1';
+    staticCanvas.style.opacity = '0';
+    startHoverAnim();
+  });
+  card.addEventListener('mouseleave', () => {
+    hoverCanvas.style.opacity = '0';
+    staticCanvas.style.opacity = '1';
+    stopHoverAnim();
+  });
+
+  const footer = document.createElement('div');
+  footer.className = 'card-footer';
+  const date = document.createElement('span');
+  date.className = 'card-date';
+  const ts = post.timestamp?.toDate?.() || new Date();
+  date.textContent = ts.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+  const likeBtn = document.createElement('button');
+  likeBtn.className = 'like-btn' + (likedSet.has(post.id) ? ' liked' : '');
+  const heart = document.createElement('span');
+  heart.className = 'like-heart';
+  heart.textContent = likedSet.has(post.id) ? '♥' : '♡';
+  const count = document.createElement('span');
+  count.textContent = post.likes || 0;
+  likeBtn.appendChild(heart);
+  likeBtn.appendChild(count);
+  likeBtn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    if (likedSet.has(post.id)) return;
+    likedSet.add(post.id);
+    localStorage.setItem('liked_posts', JSON.stringify([...likedSet]));
+    post.likes = (post.likes || 0) + 1;
+    count.textContent = post.likes;
+    heart.textContent = '♥';
+    likeBtn.classList.add('liked');
+    await updateDoc(doc(db, 'posts', post.id), { likes: increment(1) });
+  });
+
+  footer.appendChild(date);
+  footer.appendChild(likeBtn);
+  card.appendChild(footer);
+  card.addEventListener('click', () => openModal(post));
+  return card;
+}
+
+function openModal(post) {
+  selectedPost = post;
+  if (modalAnimFrame) { cancelAnimationFrame(modalAnimFrame); modalAnimFrame = null; }
+  const preview = document.getElementById('modalPreview');
+  preview.innerHTML = '';
+  const canvas = document.createElement('canvas');
+  preview.appendChild(canvas);
+
+  const allLoaded = idleSprites.every(s => s.complete && s.naturalWidth);
+  function startModal() {
+    const { particles, scaleFactor } = post;
+    if (!particles?.length) return;
+    const size = Math.max(scaleFactor || 1, 1);
+    const { minX, minY, maxX, maxY } = getBounds(particles);
+    canvas.width = (maxX - minX + 1) * size;
+    canvas.height = (maxY - minY + 1) * size;
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    const offsets = particles.map(() => Math.floor(Math.random() * 8));
+    const tintCache = buildTintCache(particles);
+    let idleFrameIndex = 0, idleTimer = 0, lastTime = null;
+    function tick(ts) {
+      if (!lastTime) lastTime = ts;
+      const dt = ts - lastTime; lastTime = ts;
+      idleTimer += dt;
+      if (idleTimer > 1000 / 8) { idleFrameIndex = (idleFrameIndex + 1) % 8; idleTimer = 0; }
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      for (let i = 0; i < particles.length; i++) {
+        const p = particles[i];
+        const { r, g, b } = p.col;
+        const tinted = tintCache[`${r},${g},${b}`]?.[( idleFrameIndex + offsets[i]) % 8];
+        if (!tinted) continue;
+        ctx.drawImage(tinted, (p.gx - minX) * size, (p.gy - minY) * size, size, size);
+      }
+      modalAnimFrame = requestAnimationFrame(tick);
+    }
+    modalAnimFrame = requestAnimationFrame(tick);
+  }
+
+  if (allLoaded) {
+    startModal();
+  } else {
+    let waited = 0;
+    function waitForSprites() {
+      if (idleSprites.every(s => s.complete && s.naturalWidth)) { startModal(); return; }
+      if (waited++ < 50) requestAnimationFrame(waitForSprites);
+    }
+    requestAnimationFrame(waitForSprites);
+  }
+
+  const ts = post.timestamp?.toDate?.() || new Date();
+  document.getElementById('modalMeta').textContent =
+    `posted ${ts.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}  ·  ${post.likes || 0} likes`;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+document.getElementById('closeModalBtn').addEventListener('click', () => {
+  if (modalAnimFrame) { cancelAnimationFrame(modalAnimFrame); modalAnimFrame = null; }
+  document.getElementById('modalOverlay').classList.remove('open');
+  selectedPost = null;
+});
+document.getElementById('modalOverlay').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('modalOverlay')) {
+    if (modalAnimFrame) { cancelAnimationFrame(modalAnimFrame); modalAnimFrame = null; }
+    document.getElementById('modalOverlay').classList.remove('open');
+    selectedPost = null;
+  }
+});
+document.getElementById('openBtn').addEventListener('click', () => {
+  if (!selectedPost) return;
+  const postToStore = {
+    ...selectedPost,
+    timestamp: selectedPost.timestamp?.toDate?.()?.toISOString() ?? null
+  };
+  // Stash directly on window before navigating — survives same-tab navigation
+  window._galleryPost = postToStore;
+  window.location.href = 'index.html';
+});
+
+loadPosts('newest');
+</script>
+</body>
+</html>
