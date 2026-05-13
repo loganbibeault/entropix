@@ -503,6 +503,7 @@ function drawSevenSeg(str, x, y, charW, dotW) {
 // DRAW LOOP
 // =====================================================
 function draw() {
+  console.log("h");
   if (appState === 'boot') return;
 
   // Handle gallery post load here, where width/height/sidebarDisplayW are fully ready
