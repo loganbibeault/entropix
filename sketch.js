@@ -2,6 +2,10 @@
 // =====================================================
 // GLOBAL STATE — MENU
 // =====================================================
+function touchStarted() { return false; }
+function touchMoved()   { return false; }
+function touchEnded()   { return false; }
+
 
 let appState = 'boot'; // 'boot' | title' | 'options' | 'fading' | 'editor'
 let titleFade = 0;
