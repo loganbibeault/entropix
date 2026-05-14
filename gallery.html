@@ -1,33 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import {
-      getFirestore, collection, addDoc, serverTimestamp
-    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyDjsgtW5_RUOpzR0TbiMY4HGlcyFRrOu5g",
-      authDomain: "entropix-a6d15.firebaseapp.com",
-      projectId: "entropix-a6d15",
-      storageBucket: "entropix-a6d15.firebasestorage.app",
-      messagingSenderId: "626387238040",
-      appId: "1:626387238040:web:40cb69e887aca3eab064ed",
-      measurementId: "G-B1S3D5YZN0"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    window._db = getFirestore(app);
-    window._fsAddDoc = addDoc;
-    window._fsCollection = collection;
-    window._fsTimestamp = serverTimestamp;
-  </script>
-
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Gallery</title>
-  <link rel="preload" href="youngs.ttf" as="font" type="font/truetype" crossorigin />
   <style>
     @font-face {
       font-family: 'Doto';
@@ -36,6 +12,8 @@
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body { height: 100%; overscroll-behavior: none; }
 
     :root {
       --gold: #f4b900;
@@ -57,288 +35,96 @@
       color: var(--text);
     }
 
-    /* ── SIDEBAR ── */
-    .sidebar {
-      width: var(--sidebar);
-      min-height: 100vh;
-      flex-shrink: 0;
-      background: url('sidebar.png') repeat-y left top / var(--sidebar) auto;
-      position: sticky;
-      top: 0;
-      display: flex;
-      flex-direction: column;
-      padding: 20px 30px;
-      gap: 20px;
-      z-index: 10;
-    }
+    .pagination { display: flex; align-items: center; gap: 8px; font-family: 'Doto', monospace; font-size: 16px; }
+    .pagination-label { color: var(--muted); letter-spacing: 0.08em; margin-right: 4px; }
+    .page-btn { background: none; border: none; cursor: pointer; font-family: 'Doto', monospace; font-size: 16px; color: var(--orange); padding: 4px 6px; border-radius: 3px; letter-spacing: 0.03em; transition: color 0.1s; }
+    .page-btn:hover:not(:disabled) { 
+  color: var(--gold);
+  background: #2a1e10;
+}
+    .page-btn:disabled { color: var(--muted); cursor: default; }
+    .page-current { color: var(--gold); font-size: 16px; min-width: 24px; text-align: center; letter-spacing: 0.05em; }
 
-    .sidebar-logo {
-      width: calc(var(--sidebar) - 60px);
-      height: auto;
-      object-fit: contain;
-      object-position: left top;
-      display: block;
-    }
-
-    .back-btn {
-      display: inline-block;
-      color: var(--orange);
-      font-family: 'Doto', monospace;
-      font-size: 18px;
-      text-decoration: none;
-      cursor: pointer;
-      background: none;
-      border: none;
-      padding: 0;
-      text-align: left;
-      letter-spacing: 0.03em;
-    }
+    .sidebar { width: var(--sidebar); height: 100vh; flex-shrink: 0; position: sticky; top: 0; display: flex; flex-direction: column; padding: 20px 30px; gap: 20px; z-index: 10; overflow-y: auto; }
+    .sidebar-logo { width: calc(var(--sidebar) - 60px); height: auto; object-fit: contain; object-position: left top; display: block; flex-shrink: 0; }
+    .back-btn { display: inline-block; color: var(--orange); font-family: 'Doto', monospace; font-size: 18px; text-decoration: none; cursor: pointer; background: none; border: none; padding: 0; text-align: left; letter-spacing: 0.03em; }
     .back-btn:hover { color: var(--gold); }
-
-    .sidebar-label {
-      font-size: 16px;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-    }
-
+    .sidebar-label { font-size: 16px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
     .sort-group { display: flex; flex-direction: column; gap: 10px; }
+    .sort-group label { font-size: 16px; cursor: pointer; display: flex; align-items: center; gap: 10px; color: var(--text); }
+    .sort-group input[type="radio"] { accent-color: var(--orange); width: 15px; height: 15px; appearance: none; -webkit-appearance: none; border: 2px solid var(--orange); border-radius: 50%; background: var(--bg); cursor: pointer; flex-shrink: 0; position: relative; }
+    .sort-group input[type="radio"]:checked::after { content: ''; position: absolute; inset: 2px; border-radius: 50%; background: var(--orange); }
+    .count-label { font-size: 14px; color: var(--muted); margin-top: auto; letter-spacing: 0.05em; }
 
-    .sort-group label {
-      font-size: 16px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      color: var(--text);
-    }
+    .main { flex: 1; padding: 40px; overflow-y: auto; }
 
-    .sort-group input[type="radio"] {
-      accent-color: var(--orange);
-      width: 15px;
-      height: 15px;
-      appearance: none;
-      -webkit-appearance: none;
-      border: 2px solid var(--orange);
-      border-radius: 50%;
-      background: var(--bg);
-      cursor: pointer;
-      flex-shrink: 0;
-      position: relative;
-    }
-    .sort-group input[type="radio"]:checked::after {
-      content: '';
-      position: absolute;
-      inset: 2px;
-      border-radius: 50%;
-      background: var(--orange);
-    }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
 
-    .count-label {
-      font-size: 14px;
-      color: var(--muted);
-      margin-top: auto;
-      letter-spacing: 0.05em;
-    }
-
-    /* ── MAIN ── */
-    .main {
-      flex: 1;
-      padding: 40px;
-      min-height: 100vh;
-    }
-
-    /* ── GRID ── */
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-      gap: 16px;
-    }
-
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      overflow: hidden;
-      cursor: pointer;
-      transition: transform 0.1s, box-shadow 0.1s, border-color 0.1s;
-    }
-    .card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 24px rgba(0,0,0,0.5);
-      border-color: var(--muted);
-    }
-
-    .card-canvas-wrap {
-      width: 100%;
-      background: var(--bg);
-      position: relative;
-    }
-
-    .card-canvas-wrap .static-canvas {
-      display: block;
-      width: 100% !important;
-      height: auto !important;
-      image-rendering: pixelated;
-      transition: opacity 0.2s;
-    }
-
-    .card-canvas-wrap .hover-canvas {
-      position: absolute;
-      inset: 0;
-      width: 100% !important;
-      height: 100% !important;
-      image-rendering: pixelated;
-      opacity: 0;
-      transition: opacity 0.2s;
-    }
-
-    .card-footer {
-      padding: 8px 12px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      border-top: 1px solid var(--border);
-    }
-
-    .card-date {
-      font-size: 13px;
-      color: var(--muted);
-      letter-spacing: 0.04em;
-    }
-
-    .like-btn {
-      background: none;
-      border: none;
-      cursor: pointer;
-      font-family: 'Doto', monospace;
-      font-size: 15px;
-      color: var(--muted);
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      padding: 4px 8px;
-      border-radius: 3px;
-      transition: background 0.1s, color 0.1s;
-    }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; overflow: hidden; cursor: pointer; transition: transform 0.1s, box-shadow 0.1s, border-color 0.1s; }
+    .card:hover { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(0,0,0,0.5); border-color: var(--muted); }
+    .card-canvas-wrap { width: 100%; background: var(--bg); position: relative; }
+    .card-canvas-wrap .static-canvas { display: block; width: 100% !important; height: auto !important; image-rendering: pixelated; transition: opacity 0.2s; }
+    .card-canvas-wrap .hover-canvas { position: absolute; inset: 0; width: 100% !important; height: 100% !important; image-rendering: pixelated; opacity: 0; transition: opacity 0.2s; }
+    .card-footer { padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--border); }
+    .card-caption { font-size: 13px; color: var(--gold); letter-spacing: 0.04em; }
+    .card-date { font-size: 13px; color: var(--muted); letter-spacing: 0.04em; }
+    .like-btn { background: none; border: none; cursor: pointer; font-family: 'Doto', monospace; font-size: 15px; color: var(--muted); display: flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: 3px; transition: background 0.1s, color 0.1s; }
     .like-btn:hover { background: #2a1e10; color: var(--gold); }
     .like-btn.liked { color: var(--orange); }
     .like-heart { font-size: 13px; line-height: 1; }
 
-    /* ── LOADING / EMPTY ── */
-    .status-msg {
-      font-size: 20px;
-      color: var(--muted);
-      text-align: center;
-      margin-top: 80px;
-      letter-spacing: 0.05em;
-    }
+    .status-msg { font-size: 20px; color: var(--muted); text-align: center; margin-top: 80px; letter-spacing: 0.05em; }
 
-    /* ── MODAL ── */
-    .modal-overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.75);
-      z-index: 100;
-      align-items: center;
-      justify-content: center;
-    }
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 100; align-items: center; justify-content: center; }
     .modal-overlay.open { display: flex; }
-
-    .modal {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 28px;
-      max-width: 480px;
-      width: 90%;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-      font-family: 'Doto', monospace;
-    }
-
-    .modal h2 {
-      font-size: 20px;
-      color: var(--gold);
-      letter-spacing: 0.05em;
-    }
-
-    .modal-preview {
-      width: 100%;
-      background: var(--bg);
-      border: 1px solid var(--border);
-    }
-    .modal-preview canvas {
-      display: block;
-      width: 100% !important;
-      height: auto !important;
-      image-rendering: pixelated;
-    }
-
+    .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 28px; max-width: 480px; width: 90%; display: flex; flex-direction: column; gap: 16px; font-family: 'Doto', monospace; }
+    .modal-preview { width: 100%; max-height: 60vh; background: var(--bg); border: 1px solid var(--border); overflow: hidden; display: flex; align-items: center; justify-content: center; }
+    .modal-preview canvas { display: block; width: 100% !important; height: auto !important; max-height: 60vh; object-fit: contain; image-rendering: pixelated; }
     .modal-actions { display: flex; gap: 12px; }
-
-    .btn-primary {
-      flex: 1;
-      padding: 12px;
-      background: #7a3a0a;
-      color: var(--gold);
-      border: 1px solid var(--orange);
-      border-radius: 3px;
-      font-family: 'Doto', monospace;
-      font-size: 16px;
-      cursor: pointer;
-      letter-spacing: 0.05em;
-      transition: background 0.1s;
-    }
+    .btn-primary { flex: 1; padding: 12px; background: #7a3a0a; color: var(--gold); border: 1px solid var(--orange); border-radius: 3px; font-family: 'Doto', monospace; font-size: 16px; cursor: pointer; letter-spacing: 0.05em; transition: background 0.1s; }
     .btn-primary:hover { background: #a04d10; }
-
-    .btn-secondary {
-      flex: 1;
-      padding: 12px;
-      background: none;
-      color: var(--muted);
-      border: 1px solid var(--border);
-      border-radius: 3px;
-      font-family: 'Doto', monospace;
-      font-size: 16px;
-      cursor: pointer;
-      letter-spacing: 0.05em;
-      transition: background 0.1s, color 0.1s;
-    }
+    .btn-secondary { flex: 1; padding: 12px; background: none; color: var(--muted); border: 1px solid var(--border); border-radius: 3px; font-family: 'Doto', monospace; font-size: 16px; cursor: pointer; letter-spacing: 0.05em; transition: background 0.1s, color 0.1s; }
     .btn-secondary:hover { background: #2a1e10; color: var(--gold); }
+    .modal-meta { font-size: 13px; color: var(--muted); letter-spacing: 0.04em; }
 
-    .modal-meta {
-      font-size: 13px;
-      color: var(--muted);
-      letter-spacing: 0.04em;
+    @media (max-width: 700px) {
+      body { flex-direction: column; }
+      .sidebar { width: 100%; height: auto; position: static; flex-direction: row; flex-wrap: wrap; align-items: center; padding: 14px 20px; gap: 12px; border-bottom: 1px solid var(--border); overflow-y: visible; }
+      .sidebar-logo { width: 100px; flex-shrink: 0; }
+      .count-label { margin-top: 0; margin-left: auto; }
+      .sort-group { flex-direction: row; gap: 16px; }
+      .main { padding: 20px; }
     }
   </style>
 </head>
+
 <body>
 
 <aside class="sidebar">
   <img src="assets/title/logo.png" class="sidebar-logo" alt="Entropix" />
-  <a class="back-btn" href="index.html">← back to editor</a>
+  <a class="back-btn" href="index.html">← back</a>
   <div class="sidebar-label">Sort by</div>
   <div class="sort-group">
     <label><input type="radio" name="sort" value="newest" checked /> newest first</label>
     <label><input type="radio" name="sort" value="liked" /> most liked</label>
   </div>
+  
   <div class="count-label" id="countLabel">— posts</div>
 </aside>
 
 <main class="main">
+  <div style="display:flex; justify-content:flex-end; align-items:center; margin-bottom:24px;">
+    <div class="pagination" id="pagination"></div>
+  </div>
   <div class="grid" id="grid"></div>
   <div class="status-msg" id="statusMsg">loading...</div>
 </main>
 
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal">
-    <h2>open in editor?</h2>
     <div class="modal-preview" id="modalPreview"></div>
-    <p class="modal-meta" id="modalMeta"></p>
+<p id="modalCaption" style="font-size:16px; color:var(--gold); letter-spacing:0.05em;"></p>
+<p class="modal-meta" id="modalMeta"></p>
     <div class="modal-actions">
       <button class="btn-primary" id="openBtn">open in editor</button>
       <button class="btn-secondary" id="closeModalBtn">cancel</button>
@@ -347,11 +133,27 @@
 </div>
 
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import {
-  getFirestore, collection, getDocs, doc, updateDoc, increment, orderBy, query
+  getFirestore, collection, getDocs, doc, updateDoc, increment,
+  orderBy, query, limit, startAfter, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
+const firebaseConfig = {
+  apiKey: "AIzaSyDjsgtW5_RUOpzR0TbiMY4HGlcyFRrOu5g",
+  authDomain: "entropix-a6d15.firebaseapp.com",
+  projectId: "entropix-a6d15",
+  storageBucket: "entropix-a6d15.firebasestorage.app",
+  messagingSenderId: "626387238040",
+  appId: "1:626387238040:web:40cb69e887aca3eab064ed",
+  measurementId: "G-B1S3D5YZN0"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+signInAnonymously(auth).then(() => console.log("anon auth ready")).catch(console.error);
 
 const idleSprites = Array.from({ length: 8 }, (_, i) => {
   const img = new Image();
@@ -359,10 +161,15 @@ const idleSprites = Array.from({ length: 8 }, (_, i) => {
   return img;
 });
 
-let posts = [];
 let likedSet = new Set(JSON.parse(localStorage.getItem('liked_posts') || '[]'));
 let selectedPost = null;
 let modalAnimFrame = null;
+const POSTS_PER_PAGE = 20;
+let currentPage = 0;
+let totalPostCount = 0;
+let pageFirstDocs = [null];
+let allPosts = [];
+let currentSort = 'newest';
 
 function getBounds(particles) {
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -376,7 +183,7 @@ function getBounds(particles) {
 }
 
 function renderPreview(post, canvas) {
-  const { particles, scaleFactor } = post;
+  const { particles, scaleFactor, bgColor } = post;
   if (!particles?.length) return;
   const size = Math.max(scaleFactor || 1, 1);
   const { minX, minY, maxX, maxY } = getBounds(particles);
@@ -388,7 +195,8 @@ function renderPreview(post, canvas) {
   const offsetX = Math.floor((dim - cols) / 2);
   const offsetY = Math.floor((dim - rows) / 2);
   const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = bgColor ? `rgb(${bgColor.r},${bgColor.g},${bgColor.b})` : '#120e0a';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
   for (const p of particles) {
     const { r, g, b } = p.col;
     ctx.fillStyle = `rgb(${r},${g},${b})`;
@@ -399,27 +207,6 @@ function renderPreview(post, canvas) {
     );
   }
 }
-
-async function loadPosts(sortBy) {
-  const grid = document.getElementById('grid');
-  const status = document.getElementById('statusMsg');
-  grid.innerHTML = '';
-  status.textContent = 'loading...';
-  const field = sortBy === 'liked' ? 'likes' : 'timestamp';
-  const q = query(collection(db, 'posts'), orderBy(field, 'desc'));
-  const snap = await getDocs(q);
-  posts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-  document.getElementById('countLabel').textContent =
-    `${posts.length} post${posts.length === 1 ? '' : 's'}`;
-  if (posts.length === 0) {
-    status.textContent = 'no posts yet — be the first!';
-    return;
-  }
-  status.textContent = '';
-  for (const post of posts) grid.appendChild(makeCard(post));
-}
-
-
 
 function buildTintCache(particles) {
   const cache = {};
@@ -445,22 +232,123 @@ function buildTintCache(particles) {
   return cache;
 }
 
+function renderPagination() {
+  const container = document.getElementById('pagination');
+  const totalPages = Math.max(1, Math.ceil(totalPostCount / POSTS_PER_PAGE));
+  if (totalPages <= 1) { container.innerHTML = ''; return; }
+  container.innerHTML = '';
+
+  const label = document.createElement('span');
+  label.className = 'pagination-label';
+  label.textContent = 'PAGE';
+  container.appendChild(label);
+
+  function makeBtn(text, onClick, disabled) {
+    const btn = document.createElement('button');
+    btn.className = 'page-btn';
+    btn.textContent = text;
+    btn.disabled = disabled;
+    if (!disabled) btn.addEventListener('click', onClick);
+    return btn;
+  }
+
+  const atStart = currentPage === 0;
+  const atEnd = currentPage >= totalPages - 1 || allPosts.length < POSTS_PER_PAGE;
+
+  container.appendChild(makeBtn('<<', () => goToPage(0), atStart));
+  container.appendChild(makeBtn('<',  () => goToPage(currentPage - 1), atStart));
+  const cur = document.createElement('span');
+  cur.className = 'page-current';
+  cur.textContent = `${currentPage + 1}`;
+  container.appendChild(cur);
+  container.appendChild(makeBtn('>',  () => goToPage(currentPage + 1), atEnd));
+  container.appendChild(makeBtn('>>', () => goToPage(totalPages - 1),  atEnd));
+}
+
+async function goToPage(page) {
+  currentPage = page;
+  await loadPage(page);
+  document.querySelector('.main').scrollTop = 0;
+}
+
+function renderPage() {
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+  for (const post of allPosts) grid.appendChild(makeCard(post));
+}
+
+async function loadPosts(sortBy) {
+  currentSort = sortBy;
+  currentPage = 0;
+  pageFirstDocs = [null];
+
+  const status = document.getElementById('statusMsg');
+  status.textContent = 'loading...';
+  document.getElementById('grid').innerHTML = '';
+  document.getElementById('pagination').innerHTML = '';
+
+  try {
+    const countSnap = await getCountFromServer(collection(db, 'posts'));
+    totalPostCount = countSnap.data().count;
+  } catch (e) {
+    totalPostCount = 0;
+  }
+
+  document.getElementById('countLabel').textContent =
+    `${totalPostCount} post${totalPostCount === 1 ? '' : 's'}`;
+
+  if (totalPostCount === 0) {
+    status.textContent = 'no posts yet — be the first!';
+    return;
+  }
+
+  await loadPage(0);
+}
+
+async function loadPage(page) {
+  const status = document.getElementById('statusMsg');
+  document.getElementById('grid').innerHTML = '';
+  status.textContent = 'loading...';
+
+  const field = currentSort === 'liked' ? 'likes' : 'timestamp';
+  const cursor = pageFirstDocs[page];
+
+  let q;
+  if (cursor) {
+    q = query(collection(db, 'posts'), orderBy(field, 'desc'), startAfter(cursor), limit(POSTS_PER_PAGE));
+  } else {
+    q = query(collection(db, 'posts'), orderBy(field, 'desc'), limit(POSTS_PER_PAGE));
+  }
+
+  try {
+    const snap = await getDocs(q);
+    allPosts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    if (snap.docs.length > 0 && !pageFirstDocs[page + 1]) {
+      pageFirstDocs[page + 1] = snap.docs[snap.docs.length - 1];
+    }
+
+    status.textContent = '';
+    renderPage();
+    renderPagination();
+  } catch (e) {
+    console.error('Failed to load page:', e);
+    status.textContent = 'error loading posts.';
+  }
+}
+
 function makeCard(post) {
   const card = document.createElement('div');
   card.className = 'card';
-
   const wrap = document.createElement('div');
   wrap.className = 'card-canvas-wrap';
-
   const staticCanvas = document.createElement('canvas');
   staticCanvas.className = 'static-canvas';
   wrap.appendChild(staticCanvas);
   requestAnimationFrame(() => renderPreview(post, staticCanvas));
-
   const hoverCanvas = document.createElement('canvas');
   hoverCanvas.className = 'hover-canvas';
   wrap.appendChild(hoverCanvas);
-
   card.appendChild(wrap);
 
   let animFrame = null;
@@ -471,10 +359,7 @@ function makeCard(post) {
 
   function startHoverAnim() {
     const allLoaded = idleSprites.every(s => s.complete && s.naturalWidth);
-    if (!allLoaded) {
-      animFrame = requestAnimationFrame(startHoverAnim);
-      return;
-    }
+    if (!allLoaded) { animFrame = requestAnimationFrame(startHoverAnim); return; }
     const { particles, scaleFactor } = post;
     if (!particles?.length) return;
     if (!tintCache) tintCache = buildTintCache(particles);
@@ -490,28 +375,21 @@ function makeCard(post) {
     const ctx = hoverCanvas.getContext('2d');
     ctx.imageSmoothingEnabled = false;
     const offsets = particles.map(() => Math.floor(Math.random() * 8));
+    const bgFill = post.bgColor
+      ? `rgb(${post.bgColor.r},${post.bgColor.g},${post.bgColor.b})` : '#120e0a';
 
     function tick(ts) {
       if (!lastTime) lastTime = ts;
-      const dt = ts - lastTime;
-      lastTime = ts;
+      const dt = ts - lastTime; lastTime = ts;
       idleTimer += dt;
-      if (idleTimer > 1000 / 8) {
-        idleFrameIndex = (idleFrameIndex + 1) % 8;
-        idleTimer = 0;
-      }
-      ctx.clearRect(0, 0, hoverCanvas.width, hoverCanvas.height);
+      if (idleTimer > 1000 / 8) { idleFrameIndex = (idleFrameIndex + 1) % 8; idleTimer = 0; }
+      ctx.fillStyle = bgFill;
+      ctx.fillRect(0, 0, hoverCanvas.width, hoverCanvas.height);
       for (let i = 0; i < particles.length; i++) {
         const p = particles[i];
-        const spriteIndex = (idleFrameIndex + offsets[i]) % 8;
-        const { r, g, b } = p.col;
-        const tinted = tintCache[`${r},${g},${b}`]?.[spriteIndex];
+        const tinted = tintCache[`${p.col.r},${p.col.g},${p.col.b}`]?.[(idleFrameIndex + offsets[i]) % 8];
         if (!tinted) continue;
-        ctx.drawImage(tinted,
-          (p.gx - minX + offsetX) * size,
-          (p.gy - minY + offsetY) * size,
-          size, size
-        );
+        ctx.drawImage(tinted, (p.gx - minX + offsetX) * size, (p.gy - minY + offsetY) * size, size, size);
       }
       animFrame = requestAnimationFrame(tick);
     }
@@ -520,27 +398,24 @@ function makeCard(post) {
 
   function stopHoverAnim() {
     if (animFrame) { cancelAnimationFrame(animFrame); animFrame = null; }
-    lastTime = null;
-    idleTimer = 0;
+    lastTime = null; idleTimer = 0;
   }
 
   card.addEventListener('mouseenter', () => {
-    hoverCanvas.style.opacity = '1';
-    staticCanvas.style.opacity = '0';
-    startHoverAnim();
+    hoverCanvas.style.opacity = '1'; staticCanvas.style.opacity = '0'; startHoverAnim();
   });
   card.addEventListener('mouseleave', () => {
-    hoverCanvas.style.opacity = '0';
-    staticCanvas.style.opacity = '1';
-    stopHoverAnim();
+    hoverCanvas.style.opacity = '0'; staticCanvas.style.opacity = '1'; stopHoverAnim();
   });
 
   const footer = document.createElement('div');
   footer.className = 'card-footer';
   const date = document.createElement('span');
-  date.className = 'card-date';
+  date.className = post.caption ? 'card-caption' : 'card-date';
   const ts = post.timestamp?.toDate?.() || new Date();
-  date.textContent = ts.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  date.textContent = post.caption
+    ? post.caption
+    : ts.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
   const likeBtn = document.createElement('button');
   likeBtn.className = 'like-btn' + (likedSet.has(post.id) ? ' liked' : '');
@@ -578,7 +453,6 @@ function openModal(post) {
   const canvas = document.createElement('canvas');
   preview.appendChild(canvas);
 
-  const allLoaded = idleSprites.every(s => s.complete && s.naturalWidth);
   function startModal() {
     const { particles, scaleFactor } = post;
     if (!particles?.length) return;
@@ -591,16 +465,19 @@ function openModal(post) {
     const offsets = particles.map(() => Math.floor(Math.random() * 8));
     const tintCache = buildTintCache(particles);
     let idleFrameIndex = 0, idleTimer = 0, lastTime = null;
+    const bgFill = post.bgColor
+      ? `rgb(${post.bgColor.r},${post.bgColor.g},${post.bgColor.b})` : '#120e0a';
+
     function tick(ts) {
       if (!lastTime) lastTime = ts;
       const dt = ts - lastTime; lastTime = ts;
       idleTimer += dt;
       if (idleTimer > 1000 / 8) { idleFrameIndex = (idleFrameIndex + 1) % 8; idleTimer = 0; }
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = bgFill;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
       for (let i = 0; i < particles.length; i++) {
         const p = particles[i];
-        const { r, g, b } = p.col;
-        const tinted = tintCache[`${r},${g},${b}`]?.[( idleFrameIndex + offsets[i]) % 8];
+        const tinted = tintCache[`${p.col.r},${p.col.g},${p.col.b}`]?.[(idleFrameIndex + offsets[i]) % 8];
         if (!tinted) continue;
         ctx.drawImage(tinted, (p.gx - minX) * size, (p.gy - minY) * size, size, size);
       }
@@ -609,7 +486,7 @@ function openModal(post) {
     modalAnimFrame = requestAnimationFrame(tick);
   }
 
-  if (allLoaded) {
+  if (idleSprites.every(s => s.complete && s.naturalWidth)) {
     startModal();
   } else {
     let waited = 0;
@@ -621,8 +498,11 @@ function openModal(post) {
   }
 
   const ts = post.timestamp?.toDate?.() || new Date();
-  document.getElementById('modalMeta').textContent =
-    `posted ${ts.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}  ·  ${post.likes || 0} likes`;
+  const dateStr = ts.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  document.getElementById('modalMeta').textContent = `posted ${dateStr}  ·  ${post.likes || 0} likes`;
+  const captionEl = document.getElementById('modalCaption');
+  captionEl.textContent = post.caption || '';
+  captionEl.style.display = post.caption ? 'block' : 'none';
   document.getElementById('modalOverlay').classList.add('open');
 }
 
@@ -644,12 +524,14 @@ document.getElementById('openBtn').addEventListener('click', () => {
     ...selectedPost,
     timestamp: selectedPost.timestamp?.toDate?.()?.toISOString() ?? null
   };
-  // Stash directly on window before navigating — survives same-tab navigation
-  window._galleryPost = postToStore;
+  sessionStorage.setItem('pendingGalleryPost', JSON.stringify(postToStore));
   window.location.href = 'index.html';
 });
 
 loadPosts('newest');
+document.querySelectorAll('input[name="sort"]').forEach(radio => {
+  radio.addEventListener('change', () => loadPosts(radio.value));
+});
 </script>
 </body>
 </html>

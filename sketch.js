@@ -18,9 +18,22 @@ let lastOptionsParticleCount = -1;
 let optionsMenuScale = 1;
 
 let layoutSliderY = 0; // fixed Y position for slider and everything below
+
+const OPTIONS_PREVIEW_SIZE = 400; // fixed square size in pixels — adjust to taste
+
+const GALLERY_BTN_NATURAL = {
+  rightMargin: 80,  // distance from right edge of screen
+  y: 80,
+  w: 400,
+  h: 200,
+};
 // =====================================================
 // GLOBAL STATE — SIDEBAR DIMENSIONS
 // =====================================================
+let pageHoldActive = null;
+let pageHoldTimer = 0;
+let pageHoldIntervalTimer = 0;
+
 let hoveringReset;
 let hoveringAnyUI = false;
 let sevenSegFont;
@@ -34,6 +47,8 @@ let sidebarDisplayW = 0;
 let sidebarScale = 1;
 // Helper: convert a natural-space value to screen space
 function sx(n) { return n * sidebarScale; }
+
+const TITLE_ANIM_NATURAL = { x: 230, y: 360, w: 1300, h: 300 };
 // =====================================================
 // GLOBAL STATE — IMAGE / CANVAS
 // =====================================================
@@ -74,6 +89,7 @@ let cursorUsingUI = false;
 let colorCountInputOpen = false;
 let optionsSwatchX = 0;
 let optionsSwatchY = 0;
+
 // =====================================================
 // GLOBAL STATE — UI
 // =====================================================
@@ -85,7 +101,7 @@ let boundsDrawStart = null;
 let boundsDrawRect = null;
 let boundsAnimTimer = 0;
 let boundsAnimState = false; // false = black, true = white
-
+const OPTIONS_CONTROLS_Y = 0.62; // fraction of screen height — adjust to taste
 // =====================================================
 // COLOR PANEL
 // =====================================================
@@ -95,6 +111,7 @@ const PALETTE_PAGE_NATURAL  = { x: 676, y: 2893 }; // adjust to taste
 let paletteHoldSquare = null;
 let paletteHoldTimer = 0;
 const PALETTE_HOLD_MS = 1000;
+let paletteTemp = []; // true for colors not yet used by any particle
 
 const PAGE_UP_NATURAL   = { x: 677, y: 2800, w: 127, h: 80 };
 const PAGE_DOWN_NATURAL = { x: 677, y: 3018, w: 127, h: 80 };
@@ -293,6 +310,11 @@ let selectedSquare = null;
 // PRELOAD
 // =====================================================
 function preload() {
+for (let i = 72; i <= 169; i++) {
+  let n = String(i).padStart(3, '0');
+  titleFrames.push(loadImage(`assets/sidebar/entropix/title/Comp 1_${n}.png`));
+}
+
   logoImg = loadImage("assets/title/logo.png");
   tankImg = loadImage("assets/sidebar/bits/tank.png");
   sidebarImg = loadImage("assets/sidebar/base.png");
@@ -423,13 +445,20 @@ function initializeApp() {
   console.log('initializeApp called');
   console.log('URL:', window.location.href);
   console.log('sessionStorage pendingGalleryPost:', sessionStorage.getItem('pendingGalleryPost'));
-  if (window._galleryPost) {
-    const post = window._galleryPost;
-    window._galleryPost = null;
-    appState = 'pendingGallery';
-    window._pendingPost = post;
-    return;
-  }
+
+  const raw = sessionStorage.getItem('pendingGalleryPost');
+
+  if (raw) {
+  sessionStorage.removeItem('pendingGalleryPost');
+  const post = JSON.parse(raw);
+  appState = 'pendingGallery';
+  window._pendingPost = post;
+  if (window._hideLoadingScreen) window._hideLoadingScreen();
+  return;
+}
+
+  appState = 'title';
+  if (window._hideLoadingScreen) window._hideLoadingScreen();
   appState = 'title';
 }
 // =====================================================
@@ -439,8 +468,12 @@ function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
   sidebarScale = height / SIDEBAR_NATURAL_H;
   sidebarDisplayW = SIDEBAR_NATURAL_W * sidebarScale;
-  centerGrid();
-  if (appState === 'options') updateOptionsScale();
+  if (appState === 'options' && imgOriginal) {
+    updateImageWidth();   // recomputes cellSize, scaleFactor, offsets, particle positions
+    updateOptionsScale(); // recomputes layoutSliderY
+  } else {
+    centerGrid();
+  }
   if (palette.length) createPaletteSquares(palette);
 }
 function centerGrid() {
@@ -449,10 +482,10 @@ function centerGrid() {
   let gridHeight = img.height * scaleFactor;
 
   if (appState === 'options') {
-  computePreviewGeometry();
-  offsetX = previewX + previewMargin + scaleFactor / 2;
-  offsetY = previewY + previewMargin + scaleFactor / 2;
-} else {
+    computePreviewGeometry();
+    offsetX = window._optionsPreviewOffsetX;
+    offsetY = window._optionsPreviewOffsetY;
+  } else {
     let padding = 20;
     let usableLeft = sidebarDisplayW + padding;
     let usableWidth = width - usableLeft;
@@ -463,12 +496,8 @@ function centerGrid() {
 
 function updateOptionsScale() {
   computePreviewGeometry();
-  layoutSliderY = previewY + previewH + 24; // snapshot at entry time
-  let _ctrlY = layoutSliderY + 60;
-  let _btnBottom = _ctrlY + 36 + 38 + 50;
-  let LAYOUT_H = _btnBottom + 20;
-  let LAYOUT_W = min(width * 0.5, 500) + 200;
-  optionsMenuScale = min(1, (height - 40) / LAYOUT_H, (width - 40) / LAYOUT_W);
+  layoutSliderY = height * OPTIONS_CONTROLS_Y; // fixed, never moves
+  optionsMenuScale = 1.0;
 }
 // =====================================================
 // LEVER HELPERS
@@ -503,7 +532,7 @@ function drawSevenSeg(str, x, y, charW, dotW) {
 // DRAW LOOP
 // =====================================================
 function draw() {
-  console.log('h');
+  console.log('a');
   if (appState === 'boot') return;
 
   // Handle gallery post load here, where width/height/sidebarDisplayW are fully ready
@@ -786,11 +815,13 @@ if (hoveringLeft || hoveringRight) hoveringAnyUI = true;
         if (dist(mouseX, mouseY, p.x, p.y) < vacRadius) {
           p.col = [...recolorCol];
           p.paletteIndex = recolorPaletteIndex >= 0 ? recolorPaletteIndex : null;
+          if (recolorPaletteIndex >= 0) paletteTemp[recolorPaletteIndex] = false;
         }
       }
       // remove palette colors with no remaining canvas particles
-      if (colorLimitOn) {
+      if (colorLimitOn && particles.length > 0) {
         for (let i = palette.length - 1; i >= 0; i--) {
+          if (paletteTemp[i]) continue;
           if (!particles.some(p => p.paletteIndex === i)) {
             // remap indices above i
             for (let p of particles) {
@@ -812,10 +843,16 @@ if (hoveringLeft || hoveringRight) hoveringAnyUI = true;
               recolorPaletteIndex--;
             }
             palette.splice(i, 1);
+            paletteTemp.splice(i, 1);
             colorCount = max(1, colorCount - 1);
           }
         }
         createPaletteSquares(palette);
+        const totalPages = max(1, ceil(palette.length / (PALETTE_NATURAL.cols * PALETTE_NATURAL.rows - 1)));
+if (palettePage >= totalPages) {
+  palettePage = totalPages - 1;
+  createPaletteSquares(palette);
+}
         clearTintCache();
       }
     }
@@ -901,22 +938,23 @@ drawSevenSeg('888', tdX, tdY, sx(67), sx(10));
 fill(color('#00ffd2'));
 drawSevenSeg(tankStr, tdX, tdY, sx(67), sx(10));
 pop();
-  // Title animation
   if (titleFrames.length > 0) {
-    let titleSpeed = map(motion, 0, 2, 0.05, 12);
-    titleFrame += titleSpeed * (deltaTime / 50) + 0.5;
-    titleFrame %= titleFrames.length;
-    image(titleFrames[floor(titleFrame)], 20, 20, 245, 60);
-  }
+  let titleSpeed = map(motion*10, 0, 5, 2, 24);
+  titleFrame += titleSpeed * (deltaTime / 1000);
+  titleFrame %= titleFrames.length;
+  image(
+    titleFrames[floor(titleFrame)],
+    sx(TITLE_ANIM_NATURAL.x),
+    sx(TITLE_ANIM_NATURAL.y),
+    sx(TITLE_ANIM_NATURAL.w),
+    sx(TITLE_ANIM_NATURAL.h)
+  );
+}
   textAlign(LEFT, BASELINE);
   fill(0);
   let isActive = motion > 0 || fear > 0;
   // Animation timers
-  idleTimer += deltaTime / 1000;
-  if (idleTimer > 1 / frameRateAnim) {
-    idleFrameGlobal = (idleFrameGlobal + 1) % idleFrames.length;
-    idleTimer = 0;
-  }
+  idleFrameGlobal = floor((millis() / 1000) * frameRateAnim) % idleFrames.length;
   walkTimer += deltaTime / 1000;
   if (walkTimer > 1 / frameRateAnim) {
     walkFrameGlobal = (walkFrameGlobal + 1) % walkFrames.length;
@@ -1130,6 +1168,7 @@ particles.push({
   walking: false, walkTimer: 0,
   paletteIndex: spawnPaletteIndex === -1 ? null : spawnPaletteIndex
 });
+if (spawnPaletteIndex >= 0) paletteTemp[spawnPaletteIndex] = false;
 tankCount--;
     }
   }
@@ -1254,9 +1293,30 @@ if (mouseIsPressed && pageHoldActive) {
   pageHoldTimer = 0;
   pageHoldIntervalTimer = 0;
 }
+
+// ----- GALLERY BUTTON -----
+let gbW = sx(GALLERY_BTN_NATURAL.w);
+let gbH = sx(GALLERY_BTN_NATURAL.h);
+let gbX = width - gbW - sx(GALLERY_BTN_NATURAL.rightMargin);
+let gbY = sx(GALLERY_BTN_NATURAL.y);
+let hoveringGalleryBtn = mouseX > gbX && mouseX < gbX + gbW &&
+                         mouseY > gbY && mouseY < gbY + gbH;
+push();
+textFont(dotoFont);
+textAlign(CENTER, CENTER);
+fill(hoveringGalleryBtn ? color(180, 55, 15) : color(35, 35, 30));
+stroke(90, 70, 45);
+strokeWeight(1);
+rect(gbX, gbY, gbW, gbH, 3);
+noStroke();
+textSize(sx(70));
+fill(hoveringGalleryBtn ? color(255, 215, 150) : color(170, 130, 70));
+text('gallery', gbX + gbW / 2, gbY + gbH / 2);
+pop();
+if (hoveringGalleryBtn) hoveringAnyUI = true;
   
   // Cursor
-  hoveringAnyUI = hoveringReset || hoveringNewBtn || hoveringSlider || hoveringLever || leverDragging || hoveringToolIcon || hoveringDial ||
+  hoveringAnyUI = hoveringGalleryBtn || hoveringReset || hoveringNewBtn || hoveringSlider || hoveringLever || leverDragging || hoveringToolIcon || hoveringDial ||
   (hoveringStrength && TOOL_STRENGTHS[selectedTool]?.value !== null && selectedTool !== 'bounds') ||
   (hoveringLeft && !leftDisabled) || (hoveringRight && !rightDisabled) ||
   (hoveringPageUp && !pageUpDisabled) || (hoveringPageDown && !pageDownDisabled) ||
@@ -1298,6 +1358,9 @@ if (mouseIsPressed && pageHoldActive) {
 // DRAW TITLE
 // =====================================================
 function drawTitleOverlay() {
+  // Advance animation timers so particles animate in options preview
+  let previewFrame = floor((millis() / 1000) * frameRateAnim);
+
   let alpha = appState === 'fading' ? map(titleFade, 0, 255, 255, 0) : 255;
   
  push();
@@ -1342,7 +1405,10 @@ rect(0, 0, width, height);
     if (hoverUpload || hoverGallery) cursor('pointer');
     else cursor('default');
   } else if (appState === 'options') {
+    
     computePreviewGeometry();
+    // reposition particles to match current preview cell size
+
     let optionsScale = optionsMenuScale;
 
     let layoutTop = previewY;
@@ -1378,11 +1444,14 @@ rect(0, 0, width, height);
     strokeWeight(1);
     rect(previewX, previewY, previewW, previewH, 12);
     drawingContext.save();
-    drawingContext.beginPath();
-    drawingContext.roundRect(previewX, previewY, previewW, previewH, 12);
-    drawingContext.clip();
-    for (let p of particles) drawParticle(p);
-    drawingContext.restore();
+drawingContext.beginPath();
+drawingContext.roundRect(previewX, previewY, previewW, previewH, 12);
+drawingContext.clip();
+drawingContext.clip();
+idleFrameGlobal = floor((millis() / 1000) * frameRateAnim) % idleFrames.length;
+for (let p of particles) drawParticle(p);
+drawingContext.restore();
+drawingContext.restore();
     pop();
 
     // new img button
@@ -1592,9 +1661,14 @@ function updateImageWidth() {
   img = imgOriginal.get();
   img.resize(w, h);
   img.loadPixels();
+  if (appState === 'options' || appState === 'title') {
+  computePreviewGeometry();
+  cellSize = window._optionsPreviewCellSize || 2;
+} else {
   cellSize = max(floor(500 / max(w, h)), 2);
-  scaleFactor = cellSize;
-  centerGrid();
+}
+scaleFactor = cellSize;
+centerGrid();
   if (colorLimitOn) {
     palette = generateDitheredPalette(img, max(int(colorCount), 1));
   } else {
@@ -1604,8 +1678,16 @@ function updateImageWidth() {
   tankQueue = [];
   tankDisplayCol = [255, 255, 255];
     lastOptionsParticleCount = optionsParticles;
-createParticles(palette);
+// Save existing offsets by grid position before rebuilding
+const savedOffsets = {};
+for (const p of particles) {
+  const gx = round((p.x - offsetX) / cellSize);
+  const gy = round((p.y - offsetY) / cellSize);
+  savedOffsets[`${gx},${gy}`] = p.idleOffset;
+}
+createParticles(palette, savedOffsets);
 createPaletteSquares(palette);
+paletteTemp = new Array(palette.length).fill(false);
 }
 // =====================================================
 // PALETTE HELPER
@@ -1627,16 +1709,31 @@ function computePreviewGeometry() {
   let _r = imgOriginal.height / imgOriginal.width;
   let _w = max(1, round(sqrt(optionsParticles / _r)));
   let _h = max(1, round(_w * _r));
-  let gridW = _w * scaleFactor;
-  let gridH = _h * scaleFactor;
-  previewMargin = 32;
 
-  // box is always sized exactly around the actual particle grid + margin
-  // width adapts to image aspect, height is fixed to the grid height
-  previewW = gridW + previewMargin * 2;
-  previewH = gridH + previewMargin * 2;
+  previewMargin = 32;
+  let topPadding = 24;
+  let bottomGap = 24;
+  let controlsY = height * OPTIONS_CONTROLS_Y;
+
+  // border box is always a fixed square, shrinks only if window is too small
+  let boxSize = min(OPTIONS_PREVIEW_SIZE, controlsY - bottomGap - topPadding);
+  previewW = boxSize;
+  previewH = boxSize;
   previewX = width / 2 - previewW / 2;
-  previewY = 24;
+  previewY = controlsY - bottomGap - previewH;
+  previewY = max(previewY, topPadding);
+
+  // cell size: use round instead of floor so it fills more consistently
+  let innerW = boxSize - previewMargin * 2;
+  let innerH = boxSize - previewMargin * 2;
+  let previewCellSize = max(2, round(min(innerW / _w, innerH / _h)));
+
+  // center the grid inside the box
+  let gridW = _w * previewCellSize;
+  let gridH = _h * previewCellSize;
+  window._optionsPreviewCellSize = previewCellSize;
+  window._optionsPreviewOffsetX = previewX + (boxSize - gridW) / 2 + previewCellSize / 2;
+  window._optionsPreviewOffsetY = previewY + (boxSize - gridH) / 2 + previewCellSize / 2;
 }
 // =====================================================
 // SCREENSHOT / CROP
@@ -1763,26 +1860,30 @@ function drawToolCursor() {
 
 
   if (selectedTool === 'recolor' && recolorCol !== null) {
-    let strength = TOOL_STRENGTHS.recolor.value;
-    
-    let r = strength * 15;
-    if (mouseX >= sidebarDisplayW) cursor('none');
-    push();
-    noFill();
+  let strength = TOOL_STRENGTHS.recolor.value;
+  let r = strength * 15;
+  if (mouseX >= sidebarDisplayW) {
+      cursor('none');
+      if (strength === 1) {
+      cursor('crosshair');
+    }
+      push();
+      noFill();
       strokeWeight(1.5);
       stroke(0);
-      circle(mouseX, mouseY, r * 2+9);
-    let ringR =  r + 6;
-    strokeWeight(3);
-    stroke(recolorCol[0], recolorCol[1], recolorCol[2]);
-    circle(mouseX, mouseY, ringR * 2 + 2);
-    pop();
+      circle(mouseX, mouseY, r * 2 + 9);
+      let ringR = r + 6;
+      strokeWeight(3);
+      stroke(recolorCol[0], recolorCol[1], recolorCol[2]);
+      circle(mouseX, mouseY, ringR * 2 + 2);
+      pop();
   }
+}
 }
 // =====================================================
 // PARTICLES
 // =====================================================
-function createParticles(palette = null) {
+function createParticles(palette = null, savedOffsets = {}) {
   particles = [];
   if (!img) return;
   img.loadPixels();
@@ -1803,7 +1904,7 @@ function createParticles(palette = null) {
         col,
         dir: 1,
         stage: 3,
-        idleOffset: floor(random(numIdle)),
+        idleOffset: savedOffsets[`${x},${y}`] ?? floor(random(numIdle)),
         animFrame: 0,
         animTimer: 0,
         paletteIndex
@@ -1938,9 +2039,10 @@ function isPaletteColorOnCanvas(index) {
 }
 
 function drawPaletteSquares() {
-  const { x, y, slotW, slotH, gap, cols, radius } = PALETTE_NATURAL;
+  const { x, y, slotW, slotH, gap, cols, rows, radius } = PALETTE_NATURAL;
 
   // bg square — no border, same size and radius as palette squares
+   const slotsPerPage = cols * rows - 1;
   let bgSq = paletteSquares.find(s => s.isBg);
     if (bgSq) {
     stroke(192, 192, 192);
@@ -1971,35 +2073,44 @@ function drawPaletteSquares() {
 
   // palette squares
   for (let sq of paletteSquares) {
-    if (sq.isBg) continue;
-    let slot = (sq.index - palettePage * (cols * 3 - 1)) + 1;
-    let col  = slot % cols;
-    let row  = floor(slot / cols);
-    let sx_ = sx(x + col * (slotW + gap));
-    let sy_ = sx(y + row * (slotH + gap));
-    let size = sx(slotW);
+  if (sq.isBg) continue;
+  const slotsPerPage = cols * rows - 1;
+  let slot = (sq.index - palettePage * slotsPerPage) + 1;
+  let col  = slot % cols;
+  let row  = floor(slot / cols);
+  let sx_ = sx(x + col * (slotW + gap));
+  let sy_ = sx(y + row * (slotH + gap));
+  let size = sx(slotW);
+  push();
+  if (paletteTemp[sq.index]) {
+    stroke(sq.color[0], sq.color[1], sq.color[2]);
+    strokeWeight(sx(6));
+    noFill();
+  } else {
     noStroke();
     fill(sq.color);
-    rect(sx_, sy_, size, size, sx(radius));
-    if (!isPaletteColorOnCanvas(sq.index)) {
-      // black triangle over top-left half
-      fill(0);
-      drawingContext.save();
-      drawingContext.beginPath();
-       drawingContext.moveTo(sx_ - 4, sy_ - 4);
-      drawingContext.lineTo(sx_ + size + 4, sy_ - 4);
-      drawingContext.lineTo(sx_ - 4, sy_ + size + 4);
-      drawingContext.closePath();
-      drawingContext.clip();
-      rect(sx_, sy_, size, size, sx(radius));
-      drawingContext.restore();
-    }
   }
+  rect(sx_, sy_, size, size, sx(radius));
+  if (!isPaletteColorOnCanvas(sq.index) && !paletteTemp[sq.index]) {
+    fill(0);
+    drawingContext.save();
+    drawingContext.beginPath();
+    drawingContext.moveTo(sx_ - 4, sy_ - 4);
+    drawingContext.lineTo(sx_ + size + 4, sy_ - 4);
+    drawingContext.lineTo(sx_ - 4, sy_ + size + 4);
+    drawingContext.closePath();
+    drawingContext.clip();
+    rect(sx_, sy_, size, size, sx(radius));
+    drawingContext.restore();
+  }
+  pop();
+  noStroke(); 
+}
   
   if (paletteHoldSquare !== null && paletteHoldTimer > 0) {
     let sq = paletteSquares[paletteHoldSquare];
     if (sq) {
-      let slot = (sq.index - palettePage * (cols * 3 - 1)) + 1;
+      let slot = (sq.index - palettePage * (cols * rows - 1)) + 1;
       let c = slot % cols;
       let r = floor(slot / cols);
       let sx_ = sx(x + c * (slotW + gap));
@@ -2024,17 +2135,18 @@ function openColorPicker(sq, screenX, screenY) {
   const scaleX = cnv.width / canvasRect.width;
   const scaleY = cnv.height / canvasRect.height;
 
-  // use explicit screen coords if provided, otherwise derive from sq position
   let posX = screenX !== undefined ? screenX : sq.x / scaleX;
   let posY = screenY !== undefined ? screenY : sq.y / scaleY;
+
+  let c = sq.color;
+  let hexVal = `#${((1 << 24) + (Math.round(c[0]) << 16) + (Math.round(c[1]) << 8) + Math.round(c[2]))
+    .toString(16).slice(1).toUpperCase()}`;
 
   let input = document.createElement('input');
   input.type = 'text';
   input.classList.add('tempColorInput');
   input.setAttribute('data-coloris', '');
-  let c = sq.color;
-  input.value = `#${((1 << 24) + (c[0] << 16) + (c[1] << 8) + c[2])
-    .toString(16).slice(1).toUpperCase()}`;
+  
   input.style.position = 'fixed';
   input.style.left = `${canvasRect.left + posX}px`;
   input.style.top  = `${canvasRect.top  + posY}px`;
@@ -2045,7 +2157,18 @@ function openColorPicker(sq, screenX, screenY) {
   input.style.padding = '0';
   input.style.margin = '0';
   document.body.appendChild(input);
-  Coloris({ el: input });
+
+  // Set instance options FIRST, before setting value
+  Coloris.setInstance('.tempColorInput', {
+    theme: 'polaroid',
+    themeMode: 'dark',
+    alpha: false,
+    format: 'hex',
+  });
+
+  // Set value AFTER setInstance so Coloris doesn't clobber it
+  input.value = hexVal;
+
   input.addEventListener('input', () => {
     let rgb = hexToRgb(input.value);
     const newCol = [rgb.r, rgb.g, rgb.b];
@@ -2053,31 +2176,24 @@ function openColorPicker(sq, screenX, screenY) {
       sq.color = newCol;
       bgColor = newCol;
     } else {
-      const oldCol = sq.color;
+      const oldCol = [...sq.color];
       sq.color = newCol;
-      if (sq.index >= 0 && sq.index < palette.length) {
-        palette[sq.index] = newCol;
-      }
-      for (let p of particles) {
-        if (p.paletteIndex === sq.index) p.col = newCol;
-      }
+      if (sq.index >= 0 && sq.index < palette.length) palette[sq.index] = newCol;
+      if (selectedTool === 'recolor' && recolorPaletteIndex === sq.index) recolorCol = [...newCol];
+      for (let p of particles) { if (p.paletteIndex === sq.index) p.col = [...newCol]; }
       for (let i = 0; i < tankQueue.length; i++) {
-        if (tankQueue[i][0] === oldCol[0] &&
-            tankQueue[i][1] === oldCol[1] &&
-            tankQueue[i][2] === oldCol[2]) {
+        if (tankQueue[i][0] === oldCol[0] && tankQueue[i][1] === oldCol[1] && tankQueue[i][2] === oldCol[2])
           tankQueue[i] = [...newCol];
-        }
       }
-      if (tankDisplayCol[0] === oldCol[0] &&
-          tankDisplayCol[1] === oldCol[1] &&
-          tankDisplayCol[2] === oldCol[2]) {
+      if (tankDisplayCol[0] === oldCol[0] && tankDisplayCol[1] === oldCol[1] && tankDisplayCol[2] === oldCol[2])
         tankDisplayCol = [...newCol];
-      }
       clearTintCache();
     }
   });
+
   input.addEventListener('coloris:close', () => input.remove());
-  input.click();
+  
+  setTimeout(() => input.click(), 0);
 }
 
 
@@ -2088,6 +2204,7 @@ function removePaletteColor(index) {
   let paletteIdx = sq.index;
   const removedCol = sq.color;
   palette.splice(paletteIdx, 1);
+  paletteTemp.splice(paletteIdx, 1);
   colorCount = max(1, colorCount - 1);
 
   for (let p of particles) {
@@ -2131,6 +2248,11 @@ function removePaletteColor(index) {
   }
   clearTintCache();
   createPaletteSquares(palette);
+  const totalPages = max(1, ceil(palette.length / (PALETTE_NATURAL.cols * PALETTE_NATURAL.rows - 1)));
+if (palettePage >= totalPages) {
+  palettePage = totalPages - 1;
+  createPaletteSquares(palette);
+}
 }
 
 //------
@@ -2320,7 +2442,18 @@ sliderX = width / 2 - sliderW / 2;
   }
   return;
 }
-  
+  // GALLERY BUTTON
+let gbW = sx(GALLERY_BTN_NATURAL.w);
+let gbH = sx(GALLERY_BTN_NATURAL.h);
+let gbX = width - gbW - sx(GALLERY_BTN_NATURAL.rightMargin);
+let gbY = sx(GALLERY_BTN_NATURAL.y);
+if (mouseX > gbX && mouseX < gbX + gbW &&
+    mouseY > gbY && mouseY < gbY + gbH) {
+  window.location.href = 'gallery.html';
+  return;
+}
+
+
   if (hoveringReset) {
   for (let p of particles) {
     let i = particles.indexOf(p);
@@ -2417,8 +2550,10 @@ if (mouseX > raX && mouseX < raX + raW && mouseY > raY && mouseY < raY + raH) {
   if (mouseX > nbX && mouseX < nbX + nbW &&
     mouseY > nbY && mouseY < nbY + nbH) {
   appState = 'options';
-    updateOptionsScale();
   updateImageWidth();
+  setTimeout(() => {
+    updateOptionsScale();
+  }, 0);
   return;
 }
   
@@ -2468,20 +2603,27 @@ if (mouseX > pdX && mouseX < pdX + pdW && mouseY > pdY && mouseY < pdY + pdH) {
   let addX = sx(PALETTE_NATURAL.x), addY = sx(PALETTE_NATURAL.y);
   let addSize = sx(PALETTE_NATURAL.slotW);
   if (mouseX > addX && mouseX < addX + addSize &&
-      mouseY > addY && mouseY < addY + addSize) {
-    const newCol = [255, 255, 255];
-    palette.push(newCol);
-    colorCount++;
-    createPaletteSquares(palette);
-    // jump to the page containing the new color
-    const slotsPerPage = PALETTE_NATURAL.cols * PALETTE_NATURAL.rows - 1;
-    palettePage = floor((palette.length - 1) / slotsPerPage);
-    createPaletteSquares(palette);
-    // find the new square and open the picker
-    const newSq = paletteSquares.find(s => s.index === palette.length - 1);
-    if (newSq) openColorPicker(newSq);
-    return;
+    mouseY > addY && mouseY < addY + addSize) {
+  const newCol = [255, 255, 255];
+  palette.unshift(newCol);        // ← insert at front instead of push
+  paletteTemp.unshift(true);      // ← same for temp array
+  colorCount++;
+  // remap all particle paletteIndex values up by 1
+  for (let p of particles) {
+    if (p.paletteIndex !== null) p.paletteIndex++;
   }
+  // remap recolorPaletteIndex
+  if (recolorPaletteIndex >= 0) recolorPaletteIndex++;
+  palettePage = 0;                // ← always jump to page 0 where it'll appear
+  createPaletteSquares(palette);
+  const newSq = paletteSquares.find(s => s.index === 0);
+  if (newSq) openColorPicker(newSq);
+  if (selectedTool === 'recolor') {
+    recolorCol = [...palette[0]];
+    recolorPaletteIndex = 0;
+  }
+  return;
+}
   //------
   for (let i = 0; i < paletteSquares.length; i++) {
   let sq = paletteSquares[i];
@@ -2541,7 +2683,7 @@ function mouseReleased() {
     return;
   }
   lightState = 'yellow';
-  postToGallery();
+  showPostDialog();
   }
   
   if (selectedTool === 'bounds' && boundsDrawRect) {
@@ -2588,15 +2730,106 @@ function keyPressed() {
 // =====================================================
 // GALLERY
 // =====================================================
-async function postToGallery() {
+function showPostDialog() {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = `
+    position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+    z-index: 9999; display: flex; align-items: center; justify-content: center;
+  `;
+
+  const modal = document.createElement('div');
+  modal.style.cssText = `
+    background: #1c1510; border: 1px solid #3a2a18; border-radius: 6px;
+    padding: 28px; width: 380px; display: flex; flex-direction: column;
+    gap: 16px; font-family: 'Doto', monospace;
+  `;
+
+  const title = document.createElement('div');
+  title.textContent = 'name your post';
+  title.style.cssText = `font-size: 20px; color: #f4b900; letter-spacing: 0.05em;`;
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.placeholder = 'optional caption...';
+  input.maxLength = 48;
+  input.style.cssText = `
+    background: #120e0a; border: 1px solid #3a2a18; border-radius: 3px;
+    color: #f4b900; font-family: 'Doto', monospace; font-size: 16px;
+    padding: 10px 12px; outline: none; letter-spacing: 0.04em; width: 100%;
+    caret-color: #f4b900;
+  `;
+  input.addEventListener('focus', () => input.style.borderColor = '#ff8a00');
+  input.addEventListener('blur',  () => input.style.borderColor = '#3a2a18');
+
+  const actions = document.createElement('div');
+  actions.style.cssText = `display: flex; gap: 12px;`;
+
+  const postBtn = document.createElement('button');
+  postBtn.textContent = 'post';
+  postBtn.style.cssText = `
+    flex: 1; padding: 12px; background: #7a3a0a; color: #f4b900;
+    border: 1px solid #ff8a00; border-radius: 3px; font-family: 'Doto', monospace;
+    font-size: 16px; cursor: pointer; letter-spacing: 0.05em;
+  `;
+  postBtn.addEventListener('mouseenter', () => postBtn.style.background = '#a04d10');
+  postBtn.addEventListener('mouseleave', () => postBtn.style.background = '#7a3a0a');
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.textContent = 'cancel';
+  cancelBtn.style.cssText = `
+    flex: 1; padding: 12px; background: none; color: #7a5c30;
+    border: 1px solid #3a2a18; border-radius: 3px; font-family: 'Doto', monospace;
+    font-size: 16px; cursor: pointer; letter-spacing: 0.05em;
+  `;
+  cancelBtn.addEventListener('mouseenter', () => { cancelBtn.style.background = '#2a1e10'; cancelBtn.style.color = '#f4b900'; });
+  cancelBtn.addEventListener('mouseleave', () => { cancelBtn.style.background = 'none'; cancelBtn.style.color = '#7a5c30'; });
+
+  function close() { document.body.removeChild(overlay); }
+
+  postBtn.addEventListener('click', () => {
+    close();
+    postToGallery(input.value.trim());
+  });
+  cancelBtn.addEventListener('click', () => {
+    close();
+    lightState = 'off';
+  });
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') postBtn.click();
+    if (e.key === 'Escape') cancelBtn.click();
+  });
+
+  actions.appendChild(postBtn);
+  actions.appendChild(cancelBtn);
+  modal.appendChild(title);
+  modal.appendChild(input);
+  modal.appendChild(actions);
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+  setTimeout(() => input.focus(), 50);
+}
+
+async function postToGallery(caption = '') {
   if (!img || !particles.length) return;
   let waited = 0;
   while (!window._db && waited < 3000) {
     await new Promise(r => setTimeout(r, 100));
     waited += 100;
   }
-  if (!window._db) {
-    console.warn('Firebase not initialised — check your config');
+
+  // wait for auth too
+  const { getAuth } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js");
+  const auth = getAuth();
+  waited = 0;
+  while (!auth.currentUser && waited < 3000) {
+    await new Promise(r => setTimeout(r, 100));
+    waited += 100;
+  }
+
+  if (!window._db || !auth.currentUser) {
+    console.warn('Firebase not ready');
+    lightState = 'red';
+    lightTimer = millis();
     return;
   }
   postStatus = 'posting';
@@ -2604,18 +2837,34 @@ async function postToGallery() {
     gx: (p.x - offsetX) / scaleFactor,
     gy: (p.y - offsetY) / scaleFactor,
     col: { r: p.col[0], g: p.col[1], b: p.col[2] },
-    paletteIndex: p.paletteIndex ?? null
+    paletteIndex: p.paletteIndex ?? null,
+    stage: p.stage ?? 3
   }));
+
+
+  
   const postData = {
-    particles: normalised,
-    palette: palette.map(c => ({ r: c[0], g: c[1], b: c[2] })),
-    tankQueue: tankQueue.map(c => ({ r: c[0], g: c[1], b: c[2] })),
-    scaleFactor,
-    imgWidth: img.width,
-    imgHeight: img.height,
-    likes: 0,
-    timestamp: window._fsTimestamp()
-  };
+  particles: normalised,
+  palette: palette.map(c => ({ r: c[0], g: c[1], b: c[2] })),
+  tankQueue: tankQueue.map(c => ({ r: c[0], g: c[1], b: c[2] })),
+  bgColor: { r: bgColor[0], g: bgColor[1], b: bgColor[2] },
+  scaleFactor,
+  imgWidth: img.width,
+  imgHeight: img.height,
+  caption: caption,
+  likes: 0,
+  boundsRects: boundsRects.map(r => ({
+  // top-left corner in grid coords
+  gx: (r.x - offsetX) / scaleFactor,
+  gy: (r.y - offsetY) / scaleFactor,
+  // size in grid units
+  gw: r.w / scaleFactor,
+  gh: r.h / scaleFactor,
+})),
+sliderT: sliderT,
+  sliderT: sliderT,
+  timestamp: window._fsTimestamp()
+};
   try {
   await window._fsAddDoc(
     window._fsCollection(window._db, 'posts'),
@@ -2631,28 +2880,83 @@ async function postToGallery() {
   setTimeout(() => { postStatus = ''; }, 3000);
 }
 function loadPostFromGallery(post) {
-  const { particles: saved, palette: savedPalette, scaleFactor: sc, imgWidth, imgHeight } = post;
+  const { particles: saved, palette: savedPalette, scaleFactor: sc, imgWidth, imgHeight, bgColor: savedBg } = post;
+
+// restore bgColor
+if (savedBg) bgColor = [savedBg.r, savedBg.g, savedBg.b];
   if (!saved?.length) return;
 
   img = { width: imgWidth, height: imgHeight };
-  scaleFactor = sc;
   palette = (savedPalette || []).map(c => Array.isArray(c) ? c.slice() : [c.r, c.g, c.b]);
   imageLoaded = true;
   appState = 'editor';
 
-  centerGrid(); // now runs with real width/height since setup deferred us
+  // Find actual bounds of particle grid coords, same as gallery preview does
+  let minGx = Infinity, minGy = Infinity, maxGx = -Infinity, maxGy = -Infinity;
+  for (const p of saved) {
+    if (p.gx < minGx) minGx = p.gx;
+    if (p.gy < minGy) minGy = p.gy;
+    if (p.gx > maxGx) maxGx = p.gx;
+    if (p.gy > maxGy) maxGy = p.gy;
+  }
+  const contentW = maxGx - minGx + 1;
+  const contentH = maxGy - minGy + 1;
 
+  // Fit actual content bounds to current window
+  let padding = 20;
+  let usableW = width - sidebarDisplayW - padding * 2;
+  let usableH = height - padding * 2;
+  scaleFactor = max(1, floor(min(usableW / contentW, usableH / contentH)));
+  cellSize = scaleFactor;
+
+  // Compute center offset for the content
+  offsetX = sidebarDisplayW + padding + (usableW - contentW * scaleFactor) / 2 + scaleFactor / 2;
+  offsetY = padding + (usableH - contentH * scaleFactor) / 2 + scaleFactor / 2;
+
+  // Restore sliderT and motion
+if (post.sliderT != null) {
+  sliderT = post.sliderT;
+  motion = sliderT * 5;
+}
+
+// Restore boundsRects from grid space → screen space
+if (post.boundsRects?.length) {
+  boundsRects = post.boundsRects.map(r => ({
+    x: (r.gx - minGx) * scaleFactor + offsetX,
+    y: (r.gy - minGy) * scaleFactor + offsetY,
+    w: r.gw * scaleFactor,
+    h: r.gh * scaleFactor,
+  }));
+} else {
+  boundsRects = [];
+}
+
+  // Place particles relative to content bounds origin
   particles = saved.map(p => ({
-    x: p.gx * scaleFactor + offsetX,  // offsetX/Y now correct
-    y: p.gy * scaleFactor + offsetY,
+    x: (p.gx - minGx) * scaleFactor + offsetX,
+    y: (p.gy - minGy) * scaleFactor + offsetY,
     vx: 0, vy: 0,
     col: Array.isArray(p.col) ? p.col.slice() : [p.col.r, p.col.g, p.col.b],
     paletteIndex: p.paletteIndex ?? null,
-    dir: 1, stage: 3,
+    dir: 1, 
+    stage: p.stage ?? 3,
     idleOffset: Math.floor(Math.random() * 8),
     animFrame: 0, animTimer: 0,
     walking: false, walkTimer: 0
   }));
+
+  let pg = createGraphics(imgWidth, imgHeight);
+pg.pixelDensity(1);
+pg.noSmooth();
+pg.background(bgColor[0], bgColor[1], bgColor[2]);
+for (const p of particles) {
+  let gx = round((p.x - offsetX) / scaleFactor);
+  let gy = round((p.y - offsetY) / scaleFactor);
+  pg.noStroke();
+  pg.fill(p.col[0], p.col[1], p.col[2]);
+  pg.rect(gx, gy, 1, 1);
+}
+imgOriginal = pg;
 
   createPaletteSquares(palette);
   tankQueue = (post.tankQueue || []).map(c => Array.isArray(c) ? c.slice() : [c.r, c.g, c.b]);
@@ -2669,7 +2973,8 @@ function generateDitheredPalette(img, k) {
   for (let i = 0; i < img.pixels.length; i += 4) {
     pixels.push([img.pixels[i], img.pixels[i + 1], img.pixels[i + 2]]);
   }
-  let centroids = Array.from({ length: k }, () => random(pixels));
+  let step = max(1, floor(pixels.length / k));
+let centroids = Array.from({ length: k }, (_, i) => [...pixels[(i * step) % pixels.length]]);
   for (let iter = 0; iter < 5; iter++) {
     let groups = Array.from({ length: k }, () => []);
     for (let p of pixels) {
