@@ -3,10 +3,20 @@
 // GLOBAL STATE — MENU
 // =====================================================
 function touchStarted(e) {
+  if (e.touches && e.touches[0]) {
+    let canvasRect = cnv.elt.getBoundingClientRect();
+    mouseX = e.touches[0].clientX - canvasRect.left;
+    mouseY = e.touches[0].clientY - canvasRect.top;
+  }
   mousePressed();
   return false;
 }
 function touchMoved(e) {
+  if (e.touches && e.touches[0]) {
+    let canvasRect = cnv.elt.getBoundingClientRect();
+    mouseX = e.touches[0].clientX - canvasRect.left;
+    mouseY = e.touches[0].clientY - canvasRect.top;
+  }
   mouseDragged();
   return false;
 }
