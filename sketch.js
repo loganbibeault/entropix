@@ -2,9 +2,18 @@
 // =====================================================
 // GLOBAL STATE — MENU
 // =====================================================
-function touchStarted() { return false; }
-function touchMoved()   { return false; }
-function touchEnded()   { return false; }
+function touchStarted(e) {
+  mousePressed();
+  return false;
+}
+function touchMoved(e) {
+  mouseDragged();
+  return false;
+}
+function touchEnded(e) {
+  mouseReleased();
+  return false;
+}
 
 
 let appState = 'boot'; // 'boot' | title' | 'options' | 'fading' | 'editor'
@@ -1378,7 +1387,9 @@ rect(0, 0, width, height);
     textFont(dotoFont);
     textAlign(CENTER, CENTER);
     imageMode(CENTER);
-    image(logoImg, width/2, height/2 - 140, 621, 133);
+   let logoW = min(621, width * 0.8);
+let logoH = logoW * (133 / 621);
+image(logoImg, width/2, height/2 - 140, logoW, logoH);
     textSize(18);
     fill(180, 140, 80, alpha);
     text('drop an image or click to upload!', width / 2, height / 2 - 30);
