@@ -47,14 +47,93 @@
 
     .sidebar { width: var(--sidebar); height: 100vh; flex-shrink: 0; position: sticky; top: 0; display: flex; flex-direction: column; padding: 20px 30px; gap: 20px; z-index: 10; overflow-y: auto; }
     .sidebar-logo { width: calc(var(--sidebar) - 60px); height: auto; object-fit: contain; object-position: left top; display: block; flex-shrink: 0; }
-    .back-btn { display: inline-block; color: var(--orange); font-family: 'Doto', monospace; font-size: 18px; text-decoration: none; cursor: pointer; background: none; border: none; padding: 0; text-align: left; letter-spacing: 0.03em; }
-    .back-btn:hover { color: var(--gold); }
+    .back-btn {
+  display: inline-block;
+  align-self: flex-start;
+  width: auto;
+
+  color: var(--orange);
+  font-family: 'Doto', monospace;
+  font-size: 18px;
+  text-decoration: none;
+  cursor: pointer;
+
+  background: none;
+  border: none;
+
+  padding: 4px 6px;
+  border-radius: 3px;
+
+  text-align: left;
+  letter-spacing: 0.03em;
+
+  transition: color 0.1s, background 0.1s;
+}
+    .sidebar-logo-link {display: inline-flex; width: max-content;}
+    
+    .back-btn:hover {
+  color: var(--gold);
+  background: #2a1e10;
+}
     .sidebar-label { font-size: 16px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
-    .sort-group { display: flex; flex-direction: column; gap: 10px; }
-    .sort-group label { font-size: 16px; cursor: pointer; display: flex; align-items: center; gap: 10px; color: var(--text); }
-    .sort-group input[type="radio"] { accent-color: var(--orange); width: 15px; height: 15px; appearance: none; -webkit-appearance: none; border: 2px solid var(--orange); border-radius: 50%; background: var(--bg); cursor: pointer; flex-shrink: 0; position: relative; }
-    .sort-group input[type="radio"]:checked::after { content: ''; position: absolute; inset: 2px; border-radius: 50%; background: var(--orange); }
-    .count-label { font-size: 14px; color: var(--muted); margin-top: auto; letter-spacing: 0.05em; }
+    .sort-group label {
+  font-size: 16px;
+  cursor: pointer;
+
+  display: flex;
+  align-items: center;
+
+  width: 100%;
+  padding: 4px 6px;
+  border-radius: 3px;
+
+  color: var(--orange);
+  transition: color 0.1s, background 0.1s;
+}
+
+/* REMOVE native radio completely */
+.sort-group input[type="radio"] {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+  position: absolute;
+}
+
+/* hover = full row highlight */
+.sort-group label:hover {
+  color: var(--gold);
+  background: #2a1e10;
+}
+
+/* selected = persistent row highlight */
+.sort-group input[type="radio"]:checked + span {
+  color: var(--gold);
+}
+
+/* BUT we need label-level selected background */
+.sort-group label:has(input[type="radio"]:checked) {
+  background: #2a1e10;
+}
+
+/* selected + hover = brighter */
+.sort-group label:has(input[type="radio"]:checked):hover {
+  background: #3a2512;
+  color: #ffd84a;
+}
+  .count-label {
+  font-size: 14px;
+  color: var(--muted);
+
+  margin-top: auto;
+  letter-spacing: 0.05em;
+
+  padding: 0;
+  background: none;
+  border-radius: 0;
+
+  width: 100%;
+
+}
 
     .main { flex: 1; padding: 40px; overflow-y: auto; }
 
@@ -101,12 +180,21 @@
 <body>
 
 <aside class="sidebar">
+  <a href="index.html" class="sidebar-logo-link">
   <img src="assets/title/logo.png" class="sidebar-logo" alt="Entropix" />
+</a>
   <a class="back-btn" href="index.html">← back</a>
   <div class="sidebar-label">Sort by</div>
   <div class="sort-group">
-    <label><input type="radio" name="sort" value="newest" checked /> newest first</label>
-    <label><input type="radio" name="sort" value="liked" /> most liked</label>
+    <label>
+  <input type="radio" name="sort" value="newest" checked />
+  <span>newest first</span>
+</label>
+
+<label>
+  <input type="radio" name="sort" value="liked" />
+  <span>most liked</span>
+</label>
   </div>
   
   <div class="count-label" id="countLabel">— posts</div>
@@ -156,10 +244,20 @@ const auth = getAuth(app);
 signInAnonymously(auth).then(() => console.log("anon auth ready")).catch(console.error);
 
 const idleSprites = Array.from({ length: 8 }, (_, i) => {
-  const img = new Image();
-  img.src = `assets/bit/idle/idle${i}.png`;
-  return img;
+  const img = new Image(); img.src = `assets/bit/idle/idle${i}.png`; return img;
 });
+const stage1Sprites = Array.from({ length: 8 }, (_, i) => {
+  const img = new Image(); img.src = `assets/bit/stage1/stage1_${i}.png`; return img;
+});
+const stage2Sprites = Array.from({ length: 8 }, (_, i) => {
+  const img = new Image(); img.src = `assets/bit/stage2/stage2_${i}.png`; return img;
+});
+
+function getSpritesForStage(stage) {
+  if (stage === 1) return stage1Sprites;
+  if (stage === 2) return stage2Sprites;
+  return idleSprites;
+}
 
 let likedSet = new Set(JSON.parse(localStorage.getItem('liked_posts') || '[]'));
 let selectedPost = null;
@@ -210,25 +308,39 @@ function renderPreview(post, canvas) {
 
 function buildTintCache(particles) {
   const cache = {};
+
   for (const p of particles) {
     const { r, g, b } = p.col;
-    const key = `${r},${g},${b}`;
+    const stage = p.stage ?? 3;
+
+    const key = `${r},${g},${b},${stage}`;
+
     if (cache[key]) continue;
-    cache[key] = idleSprites.map(sprite => {
+
+    const sprites = getSpritesForStage(stage);
+
+    cache[key] = sprites.map(sprite => {
       if (!sprite?.complete || !sprite.naturalWidth) return null;
+
       const t = document.createElement('canvas');
       t.width = sprite.naturalWidth;
       t.height = sprite.naturalHeight;
+
       const tc = t.getContext('2d');
+
       tc.drawImage(sprite, 0, 0);
+
       tc.globalCompositeOperation = 'multiply';
       tc.fillStyle = `rgb(${r},${g},${b})`;
       tc.fillRect(0, 0, t.width, t.height);
+
       tc.globalCompositeOperation = 'destination-in';
       tc.drawImage(sprite, 0, 0);
+
       return t;
     });
   }
+
   return cache;
 }
 
@@ -358,7 +470,8 @@ function makeCard(post) {
   let tintCache = null;
 
   function startHoverAnim() {
-    const allLoaded = idleSprites.every(s => s.complete && s.naturalWidth);
+    const allLoaded = [...idleSprites, ...stage1Sprites, ...stage2Sprites]
+  .every(s => s.complete && s.naturalWidth)
     if (!allLoaded) { animFrame = requestAnimationFrame(startHoverAnim); return; }
     const { particles, scaleFactor } = post;
     if (!particles?.length) return;
@@ -387,7 +500,8 @@ function makeCard(post) {
       ctx.fillRect(0, 0, hoverCanvas.width, hoverCanvas.height);
       for (let i = 0; i < particles.length; i++) {
         const p = particles[i];
-        const tinted = tintCache[`${p.col.r},${p.col.g},${p.col.b}`]?.[(idleFrameIndex + offsets[i]) % 8];
+        const stage = p.stage ?? 3;
+        const tinted = tintCache[`${p.col.r},${p.col.g},${p.col.b},${stage}`]?.[(idleFrameIndex + offsets[i]) % 8];
         if (!tinted) continue;
         ctx.drawImage(tinted, (p.gx - minX + offsetX) * size, (p.gy - minY + offsetY) * size, size, size);
       }
@@ -477,7 +591,8 @@ function openModal(post) {
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       for (let i = 0; i < particles.length; i++) {
         const p = particles[i];
-        const tinted = tintCache[`${p.col.r},${p.col.g},${p.col.b}`]?.[(idleFrameIndex + offsets[i]) % 8];
+        const stage = p.stage ?? 3;
+        const tinted = tintCache[`${p.col.r},${p.col.g},${p.col.b},${stage}`]?.[(idleFrameIndex + offsets[i]) % 8];
         if (!tinted) continue;
         ctx.drawImage(tinted, (p.gx - minX) * size, (p.gy - minY) * size, size, size);
       }
@@ -486,12 +601,14 @@ function openModal(post) {
     modalAnimFrame = requestAnimationFrame(tick);
   }
 
-  if (idleSprites.every(s => s.complete && s.naturalWidth)) {
+  if ([...idleSprites, ...stage1Sprites, ...stage2Sprites]
+  .every(s => s.complete && s.naturalWidth)) {
     startModal();
   } else {
     let waited = 0;
     function waitForSprites() {
-      if (idleSprites.every(s => s.complete && s.naturalWidth)) { startModal(); return; }
+      if ([...idleSprites, ...stage1Sprites, ...stage2Sprites]
+  .every(s => s.complete && s.naturalWidth)) { startModal(); return; }
       if (waited++ < 50) requestAnimationFrame(waitForSprites);
     }
     requestAnimationFrame(waitForSprites);
