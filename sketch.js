@@ -534,7 +534,6 @@ function drawSevenSeg(str, x, y, charW, dotW) {
 // DRAW LOOP
 // =====================================================
 function draw() {
-  console.log('a');
   if (appState === 'boot') return;
 
   // Handle gallery post load here, where width/height/sidebarDisplayW are fully ready
@@ -2636,6 +2635,7 @@ if (mouseX > pdX && mouseX < pdX + pdW && mouseY > pdY && mouseY < pdY + pdH) {
     if (selectedTool === 'recolor' && mouseButton === LEFT) {
       recolorCol = [...sq.color];
       recolorPaletteIndex = sq.isBg ? -1 : sq.index;
+      openColorPicker(sq);
     } else if (mouseButton === RIGHT && !sq.isBg) {
       removePaletteColor(i);
     } else if (mouseButton === LEFT) {

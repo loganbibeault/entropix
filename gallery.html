@@ -47,95 +47,16 @@
 
     .sidebar { width: var(--sidebar); height: 100vh; flex-shrink: 0; position: sticky; top: 0; display: flex; flex-direction: column; padding: 20px 30px; gap: 20px; z-index: 10; overflow-y: auto; }
     .sidebar-logo { width: calc(var(--sidebar) - 60px); height: auto; object-fit: contain; object-position: left top; display: block; flex-shrink: 0; }
-    .back-btn {
-  display: inline-block;
-  align-self: flex-start;
-  width: auto;
-
-  color: var(--orange);
-  font-family: 'Doto', monospace;
-  font-size: 18px;
-  text-decoration: none;
-  cursor: pointer;
-
-  background: none;
-  border: none;
-
-  padding: 4px 6px;
-  border-radius: 3px;
-
-  text-align: left;
-  letter-spacing: 0.03em;
-
-  transition: color 0.1s, background 0.1s;
-}
-    .sidebar-logo-link {display: inline-flex; width: max-content;}
-    
-    .back-btn:hover {
-  color: var(--gold);
-  background: #2a1e10;
-}
+    .back-btn { display: inline-block; color: var(--orange); font-family: 'Doto', monospace; font-size: 18px; text-decoration: none; cursor: pointer; background: none; border: none; padding: 0; text-align: left; letter-spacing: 0.03em; }
+    .back-btn:hover { color: var(--gold); }
     .sidebar-label { font-size: 16px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
-    .sort-group label {
-  font-size: 16px;
-  cursor: pointer;
+    .sort-group { display: flex; flex-direction: column; gap: 10px; }
+    .sort-group label { font-size: 16px; cursor: pointer; display: flex; align-items: center; gap: 10px; color: var(--text); }
+    .sort-group input[type="radio"] { accent-color: var(--orange); width: 15px; height: 15px; appearance: none; -webkit-appearance: none; border: 2px solid var(--orange); border-radius: 50%; background: var(--bg); cursor: pointer; flex-shrink: 0; position: relative; }
+    .sort-group input[type="radio"]:checked::after { content: ''; position: absolute; inset: 2px; border-radius: 50%; background: var(--orange); }
+    .count-label { font-size: 14px; color: var(--muted); margin-top: auto; letter-spacing: 0.05em; }
 
-  display: flex;
-  align-items: center;
-
-  width: 100%;
-  padding: 4px 6px;
-  border-radius: 3px;
-
-  color: var(--orange);
-  transition: color 0.1s, background 0.1s;
-}
-
-/* REMOVE native radio completely */
-.sort-group input[type="radio"] {
-  appearance: none;
-  -webkit-appearance: none;
-  margin: 0;
-  position: absolute;
-}
-
-/* hover = full row highlight */
-.sort-group label:hover {
-  color: var(--gold);
-  background: #2a1e10;
-}
-
-/* selected = persistent row highlight */
-.sort-group input[type="radio"]:checked + span {
-  color: var(--gold);
-}
-
-/* BUT we need label-level selected background */
-.sort-group label:has(input[type="radio"]:checked) {
-  background: #2a1e10;
-}
-
-/* selected + hover = brighter */
-.sort-group label:has(input[type="radio"]:checked):hover {
-  background: #3a2512;
-  color: #ffd84a;
-}
-  .count-label {
-  font-size: 14px;
-  color: var(--muted);
-
-  margin-top: auto;
-  letter-spacing: 0.05em;
-
-  padding: 0;
-  background: none;
-  border-radius: 0;
-
-  width: 100%;
-
-}
-
-    .main { flex: 1; padding: 40px; overflow-y: auto; }
+   .main { flex: 1; padding: 0 40px 0px 40px; overflow-y: auto; overscroll-behavior: none; }
 
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
 
@@ -167,43 +88,48 @@
     .modal-meta { font-size: 13px; color: var(--muted); letter-spacing: 0.04em; }
 
     @media (max-width: 700px) {
-      body { flex-direction: column; }
-      .sidebar { width: 100%; height: auto; position: static; flex-direction: row; flex-wrap: wrap; align-items: center; padding: 14px 20px; gap: 12px; border-bottom: 1px solid var(--border); overflow-y: visible; }
-      .sidebar-logo { width: 100px; flex-shrink: 0; }
-      .count-label { margin-top: 0; margin-left: auto; }
-      .sort-group { flex-direction: row; gap: 16px; }
-      .main { padding: 20px; }
-    }
+#openBtn { display: none; }
+#modalLikeBtnMobile { display: flex !important; justify-content: center; }
+.like-btn#modalLikeBtn { display: none; }
+
+  body { flex-direction: column; }
+  .sidebar { width: 100%; height: auto; position: sticky;
+    top: 0;
+    z-index: 11; flex-direction: row; flex-wrap: wrap; align-items: center; padding: 14px 20px; gap: 12px; border-bottom: 1px solid var(--border); overflow-y: visible; }
+  .sidebar-logo { width: 100px; flex-shrink: 0; }
+  .count-label { margin-top: 0; margin-left: auto; }
+  .sort-group { flex-direction: row; gap: 16px; }
+  .grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .back-btn { display: none; }
+  .main { padding: 0 12px 20px 12px; overscroll-behavior: none; }
+  #paginationBar { padding: 12px 0; position: sticky; top: 0; z-index: 11; justify-content: flex-start; padding-left: 12px;}
+  .sidebar-logo { width: 160px; }
+  .sidebar-label { display: none; }
+  .count-label { display: none; }
+}
   </style>
 </head>
 
 <body>
 
 <aside class="sidebar">
-  <a href="index.html" class="sidebar-logo-link">
+  <a id="logoLink" href="index.html">
   <img src="assets/title/logo.png" class="sidebar-logo" alt="Entropix" />
 </a>
   <a class="back-btn" href="index.html">← back</a>
   <div class="sidebar-label">Sort by</div>
   <div class="sort-group">
-    <label>
-  <input type="radio" name="sort" value="newest" checked />
-  <span>newest first</span>
-</label>
-
-<label>
-  <input type="radio" name="sort" value="liked" />
-  <span>most liked</span>
-</label>
+    <label><input type="radio" name="sort" value="newest" checked /> newest first</label>
+    <label><input type="radio" name="sort" value="liked" /> most liked</label>
   </div>
   
   <div class="count-label" id="countLabel">— posts</div>
 </aside>
 
 <main class="main">
-  <div style="display:flex; justify-content:flex-end; align-items:center; margin-bottom:24px;">
-    <div class="pagination" id="pagination"></div>
-  </div>
+  <div id="paginationBar" style="position:sticky; top:0; z-index:10; background:var(--bg); border-bottom:1px solid var(--border); padding:12px 40px 12px 0; display:flex; justify-content:flex-end; align-items:center; margin-bottom:24px;">
+  <div class="pagination" id="pagination"></div>
+</div>
   <div class="grid" id="grid"></div>
   <div class="status-msg" id="statusMsg">loading...</div>
 </main>
@@ -212,13 +138,27 @@
   <div class="modal">
     <div class="modal-preview" id="modalPreview"></div>
 <p id="modalCaption" style="font-size:16px; color:var(--gold); letter-spacing:0.05em;"></p>
-<p class="modal-meta" id="modalMeta"></p>
-    <div class="modal-actions">
-      <button class="btn-primary" id="openBtn">open in editor</button>
-      <button class="btn-secondary" id="closeModalBtn">cancel</button>
-    </div>
+    <div style="display:flex; align-items:center; justify-content:space-between;">
+  <span class="modal-meta" id="modalMeta"></span>
+  <button class="like-btn" id="modalLikeBtn">
+    <span class="like-heart">♡</span>
+    <span id="modalLikeCount">0</span>
+  </button>
+</div>
+<div class="modal-actions">
+  <button class="btn-primary" id="openBtn">open in editor</button>
+  <button class="btn-primary" id="modalLikeBtnMobile" style="display:none;">♡ like</button>
+  <button class="btn-secondary" id="closeModalBtn">close</button>
+</div>
   </div>
 </div>
+
+<script>
+  if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+    document.getElementById('logoLink').removeAttribute('href');
+    document.getElementById('logoLink').style.cursor = 'default';
+  }
+</script>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -244,20 +184,10 @@ const auth = getAuth(app);
 signInAnonymously(auth).then(() => console.log("anon auth ready")).catch(console.error);
 
 const idleSprites = Array.from({ length: 8 }, (_, i) => {
-  const img = new Image(); img.src = `assets/bit/idle/idle${i}.png`; return img;
+  const img = new Image();
+  img.src = `assets/bit/idle/idle${i}.png`;
+  return img;
 });
-const stage1Sprites = Array.from({ length: 8 }, (_, i) => {
-  const img = new Image(); img.src = `assets/bit/stage1/stage1_${i}.png`; return img;
-});
-const stage2Sprites = Array.from({ length: 8 }, (_, i) => {
-  const img = new Image(); img.src = `assets/bit/stage2/stage2_${i}.png`; return img;
-});
-
-function getSpritesForStage(stage) {
-  if (stage === 1) return stage1Sprites;
-  if (stage === 2) return stage2Sprites;
-  return idleSprites;
-}
 
 let likedSet = new Set(JSON.parse(localStorage.getItem('liked_posts') || '[]'));
 let selectedPost = null;
@@ -308,39 +238,25 @@ function renderPreview(post, canvas) {
 
 function buildTintCache(particles) {
   const cache = {};
-
   for (const p of particles) {
     const { r, g, b } = p.col;
-    const stage = p.stage ?? 3;
-
-    const key = `${r},${g},${b},${stage}`;
-
+    const key = `${r},${g},${b}`;
     if (cache[key]) continue;
-
-    const sprites = getSpritesForStage(stage);
-
-    cache[key] = sprites.map(sprite => {
+    cache[key] = idleSprites.map(sprite => {
       if (!sprite?.complete || !sprite.naturalWidth) return null;
-
       const t = document.createElement('canvas');
       t.width = sprite.naturalWidth;
       t.height = sprite.naturalHeight;
-
       const tc = t.getContext('2d');
-
       tc.drawImage(sprite, 0, 0);
-
       tc.globalCompositeOperation = 'multiply';
       tc.fillStyle = `rgb(${r},${g},${b})`;
       tc.fillRect(0, 0, t.width, t.height);
-
       tc.globalCompositeOperation = 'destination-in';
       tc.drawImage(sprite, 0, 0);
-
       return t;
     });
   }
-
   return cache;
 }
 
@@ -450,6 +366,7 @@ async function loadPage(page) {
 }
 
 function makeCard(post) {
+  
   const card = document.createElement('div');
   card.className = 'card';
   const wrap = document.createElement('div');
@@ -470,8 +387,7 @@ function makeCard(post) {
   let tintCache = null;
 
   function startHoverAnim() {
-    const allLoaded = [...idleSprites, ...stage1Sprites, ...stage2Sprites]
-  .every(s => s.complete && s.naturalWidth)
+    const allLoaded = idleSprites.every(s => s.complete && s.naturalWidth);
     if (!allLoaded) { animFrame = requestAnimationFrame(startHoverAnim); return; }
     const { particles, scaleFactor } = post;
     if (!particles?.length) return;
@@ -500,8 +416,7 @@ function makeCard(post) {
       ctx.fillRect(0, 0, hoverCanvas.width, hoverCanvas.height);
       for (let i = 0; i < particles.length; i++) {
         const p = particles[i];
-        const stage = p.stage ?? 3;
-        const tinted = tintCache[`${p.col.r},${p.col.g},${p.col.b},${stage}`]?.[(idleFrameIndex + offsets[i]) % 8];
+        const tinted = tintCache[`${p.col.r},${p.col.g},${p.col.b}`]?.[(idleFrameIndex + offsets[i]) % 8];
         if (!tinted) continue;
         ctx.drawImage(tinted, (p.gx - minX + offsetX) * size, (p.gy - minY + offsetY) * size, size, size);
       }
@@ -533,16 +448,27 @@ function makeCard(post) {
 
   const likeBtn = document.createElement('button');
   likeBtn.className = 'like-btn' + (likedSet.has(post.id) ? ' liked' : '');
+  post._likeBtn = likeBtn;
   const heart = document.createElement('span');
   heart.className = 'like-heart';
   heart.textContent = likedSet.has(post.id) ? '♥' : '♡';
+  post._heartEl = heart;
   const count = document.createElement('span');
+  post._countEl = count;
   count.textContent = post.likes || 0;
   likeBtn.appendChild(heart);
   likeBtn.appendChild(count);
   likeBtn.addEventListener('click', async (e) => {
-    e.stopPropagation();
-    if (likedSet.has(post.id)) return;
+  e.stopPropagation();
+  if (likedSet.has(post.id)) {
+    likedSet.delete(post.id);
+    localStorage.setItem('liked_posts', JSON.stringify([...likedSet]));
+    post.likes = Math.max(0, (post.likes || 0) - 1);
+    count.textContent = post.likes;
+    heart.textContent = '♡';
+    likeBtn.classList.remove('liked');
+    await updateDoc(doc(db, 'posts', post.id), { likes: increment(-1) });
+  } else {
     likedSet.add(post.id);
     localStorage.setItem('liked_posts', JSON.stringify([...likedSet]));
     post.likes = (post.likes || 0) + 1;
@@ -550,7 +476,8 @@ function makeCard(post) {
     heart.textContent = '♥';
     likeBtn.classList.add('liked');
     await updateDoc(doc(db, 'posts', post.id), { likes: increment(1) });
-  });
+  }
+});
 
   footer.appendChild(date);
   footer.appendChild(likeBtn);
@@ -560,6 +487,35 @@ function makeCard(post) {
 }
 
 function openModal(post) {
+const modalLikeBtnMobile = document.getElementById('modalLikeBtnMobile');
+function syncMobileLikeBtn() {
+  const liked = likedSet.has(post.id);
+  modalLikeBtnMobile.textContent = liked ? '♥ liked' : '♡ like';
+  modalLikeBtnMobile.style.background = liked ? '#3a1a0a' : '#7a3a0a';
+  modalLikeBtnMobile.style.borderColor = liked ? 'var(--muted)' : 'var(--orange)';
+}
+syncMobileLikeBtn();
+modalLikeBtnMobile.onclick = async (e) => {
+  if (likedSet.has(post.id)) {
+    likedSet.delete(post.id);
+    localStorage.setItem('liked_posts', JSON.stringify([...likedSet]));
+    post.likes = Math.max(0, (post.likes || 0) - 1);
+    if (post._countEl) post._countEl.textContent = post.likes;
+    if (post._heartEl) post._heartEl.textContent = '♡';
+    if (post._likeBtn) post._likeBtn.classList.remove('liked');
+    await updateDoc(doc(db, 'posts', post.id), { likes: increment(-1) });
+  } else {
+    likedSet.add(post.id);
+    localStorage.setItem('liked_posts', JSON.stringify([...likedSet]));
+    post.likes = (post.likes || 0) + 1;
+    if (post._countEl) post._countEl.textContent = post.likes;
+    if (post._heartEl) post._heartEl.textContent = '♥';
+    if (post._likeBtn) post._likeBtn.classList.add('liked');
+    await updateDoc(doc(db, 'posts', post.id), { likes: increment(1) });
+  }
+  syncMobileLikeBtn();
+};
+
   selectedPost = post;
   if (modalAnimFrame) { cancelAnimationFrame(modalAnimFrame); modalAnimFrame = null; }
   const preview = document.getElementById('modalPreview');
@@ -591,8 +547,7 @@ function openModal(post) {
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       for (let i = 0; i < particles.length; i++) {
         const p = particles[i];
-        const stage = p.stage ?? 3;
-        const tinted = tintCache[`${p.col.r},${p.col.g},${p.col.b},${stage}`]?.[(idleFrameIndex + offsets[i]) % 8];
+        const tinted = tintCache[`${p.col.r},${p.col.g},${p.col.b}`]?.[(idleFrameIndex + offsets[i]) % 8];
         if (!tinted) continue;
         ctx.drawImage(tinted, (p.gx - minX) * size, (p.gy - minY) * size, size, size);
       }
@@ -601,14 +556,12 @@ function openModal(post) {
     modalAnimFrame = requestAnimationFrame(tick);
   }
 
-  if ([...idleSprites, ...stage1Sprites, ...stage2Sprites]
-  .every(s => s.complete && s.naturalWidth)) {
+  if (idleSprites.every(s => s.complete && s.naturalWidth)) {
     startModal();
   } else {
     let waited = 0;
     function waitForSprites() {
-      if ([...idleSprites, ...stage1Sprites, ...stage2Sprites]
-  .every(s => s.complete && s.naturalWidth)) { startModal(); return; }
+      if (idleSprites.every(s => s.complete && s.naturalWidth)) { startModal(); return; }
       if (waited++ < 50) requestAnimationFrame(waitForSprites);
     }
     requestAnimationFrame(waitForSprites);
@@ -616,11 +569,44 @@ function openModal(post) {
 
   const ts = post.timestamp?.toDate?.() || new Date();
   const dateStr = ts.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-  document.getElementById('modalMeta').textContent = `posted ${dateStr}  ·  ${post.likes || 0} likes`;
+  document.getElementById('modalMeta').textContent = `posted ${dateStr}`;
   const captionEl = document.getElementById('modalCaption');
   captionEl.textContent = post.caption || '';
   captionEl.style.display = post.caption ? 'block' : 'none';
   document.getElementById('modalOverlay').classList.add('open');
+
+  const modalLikeBtn = document.getElementById('modalLikeBtn');
+const modalHeart = modalLikeBtn.querySelector('.like-heart');
+const modalCount = document.getElementById('modalLikeCount');
+const isLiked = likedSet.has(post.id);
+modalHeart.textContent = isLiked ? '♥' : '♡';
+modalCount.textContent = post.likes || 0;
+modalLikeBtn.className = 'like-btn' + (isLiked ? ' liked' : '');
+modalLikeBtn.onclick = async (e) => {
+  if (likedSet.has(post.id)) {
+    likedSet.delete(post.id);
+    localStorage.setItem('liked_posts', JSON.stringify([...likedSet]));
+    post.likes = Math.max(0, (post.likes || 0) - 1);
+    modalCount.textContent = post.likes;
+    modalHeart.textContent = '♡';
+    modalLikeBtn.classList.remove('liked');
+    if (post._countEl) post._countEl.textContent = post.likes;
+    if (post._heartEl) post._heartEl.textContent = '♡';
+    if (post._likeBtn) post._likeBtn.classList.remove('liked');
+    await updateDoc(doc(db, 'posts', post.id), { likes: increment(-1) });
+  } else {
+    likedSet.add(post.id);
+    localStorage.setItem('liked_posts', JSON.stringify([...likedSet]));
+    post.likes = (post.likes || 0) + 1;
+    modalCount.textContent = post.likes;
+    modalHeart.textContent = '♥';
+    modalLikeBtn.classList.add('liked');
+    if (post._countEl) post._countEl.textContent = post.likes;
+    if (post._heartEl) post._heartEl.textContent = '♥';
+    if (post._likeBtn) post._likeBtn.classList.add('liked');
+    await updateDoc(doc(db, 'posts', post.id), { likes: increment(1) });
+  }
+};
 }
 
 document.getElementById('closeModalBtn').addEventListener('click', () => {
