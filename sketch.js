@@ -1305,13 +1305,11 @@ let hoveringGalleryBtn = mouseX > gbX && mouseX < gbX + gbW &&
 push();
 textFont(dotoFont);
 textAlign(CENTER, CENTER);
-fill(hoveringGalleryBtn ? color(180, 55, 15) : color(35, 35, 30));
-stroke(90, 70, 45);
-strokeWeight(1);
+fill(hoveringGalleryBtn ? color(42, 30, 16) : color(35, 35, 30));
+stroke(58, 42, 24); strokeWeight(1);
 rect(gbX, gbY, gbW, gbH, 3);
-noStroke();
-textSize(sx(70));
-fill(hoveringGalleryBtn ? color(255, 215, 150) : color(170, 130, 70));
+noStroke(); textSize(sx(70));
+fill(hoveringGalleryBtn ? color(244, 185, 0) : color(122, 92, 48));
 text('gallery', gbX + gbW / 2, gbY + gbH / 2);
 pop();
 if (hoveringGalleryBtn) hoveringAnyUI = true;
@@ -1395,18 +1393,31 @@ image(logoImg, width/2, height/2 - 140, logoW, logoH);
     text('upload image', width / 2, btnY + btnH / 2);
     // Gallery button
     let gBtnY = btnY + btnH + 14;
-    let hoverGallery = mouseX > btnX && mouseX < btnX + btnW &&
-                       mouseY > gBtnY && mouseY < gBtnY + btnH;
-    fill(hoverGallery ? 55 : 35, 35, 30, alpha);
-    stroke(90, 70, 45, alpha);
-    strokeWeight(1);
-    rect(btnX, gBtnY, btnW, btnH, 3);
-    noStroke();
-    textSize(20);
-    fill(170, 130, 70, alpha);
-    text('gallery', width / 2, gBtnY + btnH / 2);
-    if (hoverUpload || hoverGallery) cursor('pointer');
-    else cursor('default');
+let hoverGallery = mouseX > btnX && mouseX < btnX + btnW &&
+                   mouseY > gBtnY && mouseY < gBtnY + btnH;
+fill(hoverGallery ? color(42, 30, 16, alpha) : color(18, 14, 10, alpha));
+stroke(58, 42, 24, alpha);
+strokeWeight(1);
+rect(btnX, gBtnY, btnW, btnH, 3);
+noStroke();
+textSize(20);
+fill(hoverGallery ? color(244, 185, 0, alpha) : color(180, 140, 80, alpha));
+text('gallery', width / 2, gBtnY + btnH / 2);
+
+let oBtnY = gBtnY + btnH + 14;
+let hoverOther = mouseX > btnX && mouseX < btnX + btnW &&
+                 mouseY > oBtnY && mouseY < oBtnY + btnH;
+fill(hoverOther ? color(42, 30, 16, alpha) : color(18, 14, 10, alpha));
+stroke(58, 42, 24, alpha);
+strokeWeight(1);
+rect(btnX, oBtnY, btnW, btnH, 3);
+noStroke();
+textSize(20);
+fill(hoverOther ? color(244, 185, 0, alpha) : color(180, 140, 80, alpha));
+text('other projects', width / 2, oBtnY + btnH / 2);
+
+if (hoverUpload || hoverGallery || hoverOther) cursor('pointer');
+else cursor('default');
   } else if (appState === 'options') {
     
     computePreviewGeometry();
@@ -2347,11 +2358,17 @@ function mousePressed() {
 
     
     if (mouseX > btnX && mouseX < btnX + btnW &&
-        mouseY > gBtnY && mouseY < gBtnY + btnH) {
-      window.location.href = 'gallery.html';
-      return;
-    }
-    return; // swallow all other clicks
+    mouseY > gBtnY && mouseY < gBtnY + btnH) {
+  window.location.href = 'gallery.html';
+  return;
+}
+let oBtnY = gBtnY + btnH + 14;
+if (mouseX > btnX && mouseX < btnX + btnW &&
+    mouseY > oBtnY && mouseY < oBtnY + btnH) {
+  window.open('https://loganbibeault.com', '_blank');
+  return;
+}
+return; // swallow all other clicks
   }
   if (appState === 'options') {
   computePreviewGeometry();           // ensure previewX/Y/W/H are current
