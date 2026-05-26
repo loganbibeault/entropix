@@ -82,27 +82,36 @@ canvas {
 
     <!-- Firebase -->
     <script type="module">
-      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-      import {
-        getFirestore, collection, addDoc, serverTimestamp
-      } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import {
+    getFirestore, collection, addDoc, serverTimestamp
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
-      const firebaseConfig = {
-        apiKey: "AIzaSyDjsgtW5_RUOpzR0TbiMY4HGlcyFRrOu5g",
-        authDomain: "entropix-a6d15.firebaseapp.com",
-        projectId: "entropix-a6d15",
-        storageBucket: "entropix-a6d15.firebasestorage.app",
-        messagingSenderId: "626387238040",
-        appId: "1:626387238040:web:40cb69e887aca3eab064ed",
-        measurementId: "G-B1S3D5YZN0"
-      };
+  const firebaseConfig = {
+    apiKey: "AIzaSyDjsgtW5_RUOpzR0TbiMY4HGlcyFRrOu5g",
+    authDomain: "entropix-a6d15.firebaseapp.com",
+    projectId: "entropix-a6d15",
+    storageBucket: "entropix-a6d15.firebasestorage.app",
+    messagingSenderId: "626387238040",
+    appId: "1:626387238040:web:40cb69e887aca3eab064ed"
+  };
 
-      const app = initializeApp(firebaseConfig);
-      window._db = getFirestore(app);
-      window._fsAddDoc = addDoc;
-      window._fsCollection = collection;
-      window._fsTimestamp = serverTimestamp;
-    </script>
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const auth = getAuth(app);
+
+  // Expose to window so p5.js sketch can access them
+  window._db = db;
+  window._fsCollection = collection;
+  window._fsAddDoc = addDoc;
+  window._fsTimestamp = serverTimestamp;
+
+  signInAnonymously(auth)
+    .then(() => console.log("anon auth ready"))
+    .catch(console.error);
+</script>
+    
   </head>
   <body>
     <script src="https://cdn.jsdelivr.net/gh/mdbassit/Coloris@latest/dist/coloris.min.js"></script>
