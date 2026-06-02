@@ -221,11 +221,19 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 signInAnonymously(auth).then(() => console.log("anon auth ready")).catch(console.error);
 
-const idleSprites = Array.from({ length: 8 }, (_, i) => {
-  const img = new Image();
-  img.src = `assets/bit/idle/idle${i}.png`;
-  return img;
-});
+function loadSpriteSet(pathFn, count) {
+  return Array.from({ length: count }, (_, i) => {
+    const img = new Image();
+    img.src = pathFn(i);
+    return img;
+  });
+}
+
+const spritesByStage = {
+  1: loadSpriteSet(i => `assets/bit/stage1/stage1_${i}.png`, 8),
+  2: loadSpriteSet(i => `assets/bit/stage2/stage2_${i}.png`, 8),
+  3: loadSpriteSet(i => `assets/bit/idle/idle${i}.png`, 8),
+};
 
 let likedSet = new Set(JSON.parse(localStorage.getItem('liked_posts') || '[]'));
 let selectedPost = null;
@@ -278,9 +286,11 @@ function buildTintCache(particles) {
   const cache = {};
   for (const p of particles) {
     const { r, g, b } = p.col;
-    const key = `${r},${g},${b}`;
+    const stage = p.stage ?? 3;
+    const key = `${r},${g},${b},${stage}`;
     if (cache[key]) continue;
-    cache[key] = idleSprites.map(sprite => {
+    const sprites = spritesByStage[stage] ?? spritesByStage[3];
+    cache[key] = sprites.map(sprite => {
       if (!sprite?.complete || !sprite.naturalWidth) return null;
       const t = document.createElement('canvas');
       t.width = sprite.naturalWidth;
@@ -425,7 +435,7 @@ function makeCard(post) {
   let tintCache = null;
 
   function startHoverAnim() {
-    const allLoaded = idleSprites.every(s => s.complete && s.naturalWidth);
+    const allLoaded = Object.values(spritesByStage).flat().every(s => s.complete && s.naturalWidth);
     if (!allLoaded) { animFrame = requestAnimationFrame(startHoverAnim); return; }
     const { particles, scaleFactor } = post;
     if (!particles?.length) return;
@@ -454,7 +464,8 @@ function makeCard(post) {
       ctx.fillRect(0, 0, hoverCanvas.width, hoverCanvas.height);
       for (let i = 0; i < particles.length; i++) {
         const p = particles[i];
-        const tinted = tintCache[`${p.col.r},${p.col.g},${p.col.b}`]?.[(idleFrameIndex + offsets[i]) % 8];
+        const stage = p.stage ?? 3;
+const tinted = tintCache[`${p.col.r},${p.col.g},${p.col.b},${stage}`]?.[(idleFrameIndex + offsets[i]) % 8];
         if (!tinted) continue;
         ctx.drawImage(tinted, (p.gx - minX + offsetX) * size, (p.gy - minY + offsetY) * size, size, size);
       }
@@ -585,7 +596,8 @@ modalLikeBtnMobile.onclick = async (e) => {
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       for (let i = 0; i < particles.length; i++) {
         const p = particles[i];
-        const tinted = tintCache[`${p.col.r},${p.col.g},${p.col.b}`]?.[(idleFrameIndex + offsets[i]) % 8];
+        const stage = p.stage ?? 3;
+const tinted = tintCache[`${p.col.r},${p.col.g},${p.col.b},${stage}`]?.[(idleFrameIndex + offsets[i]) % 8];
         if (!tinted) continue;
         ctx.drawImage(tinted, (p.gx - minX) * size, (p.gy - minY) * size, size, size);
       }
@@ -594,12 +606,12 @@ modalLikeBtnMobile.onclick = async (e) => {
     modalAnimFrame = requestAnimationFrame(tick);
   }
 
-  if (idleSprites.every(s => s.complete && s.naturalWidth)) {
+  if (Object.values(spritesByStage).flat().every(s => s.complete && s.naturalWidth)) {
     startModal();
   } else {
     let waited = 0;
     function waitForSprites() {
-      if (idleSprites.every(s => s.complete && s.naturalWidth)) { startModal(); return; }
+      if (Object.values(spritesByStage).flat().every(s => s.complete && s.naturalWidth)) { startModal(); return; }
       if (waited++ < 50) requestAnimationFrame(waitForSprites);
     }
     requestAnimationFrame(waitForSprites);
